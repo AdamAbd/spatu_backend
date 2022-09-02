@@ -1,18 +1,30 @@
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
+require("dotenv").config();
 
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
+/// Import Packages
+const express = require('express');
+const path = require('path');
+const cookieParser = require('cookie-parser');
+const logger = require('morgan');
+const fileUpload = require('express-fileupload');
+const cors = require('cors');
 
-var app = express();
+/// Import Helpers
+const responseHelpers = require('./helpers/ResponseHelper').helper;
+
+/// Import Routers
+const indexRouter = require('./routes/index');
+const usersRouter = require('./routes/users');
+
+const app = express();
 
 app.use(logger('dev'));
 app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(fileUpload());
+app.use(cors());
+app.use(responseHelpers());
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);

@@ -2,7 +2,7 @@ require("dotenv").config();
 
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-// const { Op } = require("sequelize");
+const { Op } = require("sequelize");
 const nodemailer = require('nodemailer');
 const moment = require('moment');
 
@@ -59,9 +59,28 @@ const register = async (req, res) => {
             }
         );
     } catch (error) {
-        console.log(error.message);
+        console.warn(error.message);
         return res.failServerError(error.message);
     }
 }
 
-module.exports = { register }
+const verify = async (req, res) => {
+    try {
+        // Get all validated values from middlewares
+        const { token } = req.verifyValues;
+
+        const verifyTokenExist = await VerifyTokens.findOne({ where: { token: token, expired_at: { [Op.gte]: moment() } } });
+        if (!verifyTokenExist) return res.failUnauthorized();
+
+        await Users.update({ verified_email: moment() }, { where: { id: verifyTokenExist.user_id } });
+
+        await verifyTokenExist.destroy();
+
+        return res.respond("Your email verification success")
+    } catch (error) {
+        console.warn(error.message);
+        return res.failServerError(error.message);
+    }
+}
+
+module.exports = { register, verify }

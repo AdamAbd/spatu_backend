@@ -13,7 +13,7 @@ const responseHelpers = require('./helpers/ResponseHelper').helper;
 
 /// Import Routers
 const indexRouter = require('./routes/index');
-const usersRouter = require('./routes/users');
+const usersRouter = require('./routes/UsersRoute');
 
 const app = express();
 
@@ -26,7 +26,7 @@ app.use(fileUpload());
 app.use(cors());
 app.use(responseHelpers());
 
-app.use('/', indexRouter);
-app.use('/users', usersRouter);
+app.use('/halo', indexRouter);
+app.use('/api/v1/users', usersRouter);
 
 module.exports = app;

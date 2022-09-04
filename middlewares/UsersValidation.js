@@ -16,7 +16,7 @@ const validateRegister = (req, res, next) => {
 
 const validateVerify = (req, res, next) => {
     const schema = Joi.object({
-        token: Joi.number().min(5).required(),
+        code: Joi.number().min(5).required(),
     });
 
     const { error, value } = schema.validate(req.body);

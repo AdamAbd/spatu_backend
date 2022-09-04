@@ -1,7 +1,7 @@
 module.exports = (sequelize, DataTypes) => {
-  const VerifyTokens = sequelize.define(
+  const VerifyCodes = sequelize.define(
     // "User" means models name
-    "VerifyTokens", {
+    "VerifyCodes", {
     id: {
       allowNull: false,
       primaryKey: true,
@@ -13,7 +13,7 @@ module.exports = (sequelize, DataTypes) => {
       references: { model: 'users', key: 'id' },
       type: DataTypes.UUID,
     },
-    token: {
+    code: {
       type: DataTypes.INTEGER,
       validate: {
         len: {
@@ -47,8 +47,8 @@ module.exports = (sequelize, DataTypes) => {
     // freezeTableName: true,
 
     // define the table's name
-    tableName: 'verify_tokens'
+    tableName: 'verify_codes'
   }
   );
-  return VerifyTokens;
+  return VerifyCodes;
 };

@@ -1,7 +1,7 @@
 'use strict';
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('verify_tokens', {
+    await queryInterface.createTable('verify_codes', {
       id: {
         allowNull: false,
         primaryKey: true,
@@ -13,7 +13,7 @@ module.exports = {
         references: { model: 'users', key: 'id' },
         type: Sequelize.UUID,
       },
-      token: {
+      code: {
         type: Sequelize.INTEGER,
         len: {
           args: [0, 6]
@@ -31,6 +31,6 @@ module.exports = {
     });
   },
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable('verify_tokens');
+    await queryInterface.dropTable('verify_codes');
   }
 };

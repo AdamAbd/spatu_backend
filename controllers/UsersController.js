@@ -6,7 +6,7 @@ const { Op } = require("sequelize");
 const nodemailer = require('nodemailer');
 const moment = require('moment');
 
-const { Users, VerifyTokens } = require('../models');
+const { Users, VerifyCodes } = require('../models');
 
 const { ACCES_TOKEN_SECRET, REFRESH_TOKEN_SECRET, MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM_ADDRESS } = process.env;
 
@@ -26,13 +26,13 @@ const register = async (req, res) => {
         const user = await Users.create({ username: username, email: email, password: hashPassword });
 
         // Creating the verify token
-        const verifyToken = Math.floor(100000 + Math.random() * 900000);
+        const generateCode = Math.floor(100000 + Math.random() * 900000);
         // Creating the expire date time using moment js
         const expire = moment().add(1, "h");
 
         //! Need improvement
         // Store verify token data to the database
-        await VerifyTokens.create({ user_id: user.id, token: verifyToken, expired_at: expire });
+        await VerifyCodes.create({ user_id: user.id, code: generateCode, expired_at: expire });
 
         // Initialize nodemailer
         const client = nodemailer.createTransport({
@@ -49,7 +49,7 @@ const register = async (req, res) => {
                 from: MAIL_FROM_ADDRESS,
                 to: email,
                 subject: "Spatu Email Verification",
-                text: `This is your code for email verification: ${verifyToken}`
+                text: `This is your code for email verification: ${generateCode}`
             },
             (err, data) => {
                 if (err) {
@@ -67,14 +67,14 @@ const register = async (req, res) => {
 const verify = async (req, res) => {
     try {
         // Get all validated values from middlewares
-        const { token } = req.verifyValues;
+        const { code } = req.verifyValues;
 
-        const verifyTokenExist = await VerifyTokens.findOne({ where: { token: token, expired_at: { [Op.gte]: moment() } } });
-        if (!verifyTokenExist) return res.failUnauthorized();
+        const verifyCodeExist = await VerifyCodes.findOne({ where: { code: code, expired_at: { [Op.gte]: moment() } } });
+        if (!verifyCodeExist) return res.failUnauthorized();
 
-        await Users.update({ verified_email: moment() }, { where: { id: verifyTokenExist.user_id } });
+        await Users.update({ verified_email: moment() }, { where: { id: verifyCodeExist.user_id } });
 
-        await verifyTokenExist.destroy();
+        await verifyCodeExist.destroy();
 
         return res.respond("Your email verification success")
     } catch (error) {

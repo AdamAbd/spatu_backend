@@ -25,39 +25,7 @@ const register = async (req, res) => {
         // Store user data to the database
         const user = await Users.create({ username: username, email: email, password: hashPassword });
 
-        // Creating the verify token
-        const generateCode = Math.floor(100000 + Math.random() * 900000);
-        // Creating the expire date time using moment js
-        const expire = moment().add(1, "minute");
-
-        //! Need improvement
-        // Store verify token data to the database
-        await VerifyCodes.create({ user_id: user.id, code: generateCode, expired_at: expire });
-
-        // Initialize nodemailer
-        const client = nodemailer.createTransport({
-            service: "Gmail",
-            auth: {
-                user: MAIL_USERNAME,
-                pass: MAIL_PASSWORD
-            }
-        });
-
-        // Sending the mail
-        client.sendMail(
-            {
-                from: MAIL_FROM_ADDRESS,
-                to: email,
-                subject: "Spatu Email Verification",
-                text: `This is your code for email verification: ${generateCode}`
-            },
-            (err, data) => {
-                if (err) {
-                    return res.failServerError(err);
-                }
-                return res.respondCreated('Please check your email');
-            }
-        );
+        await sendVerifyCode(res, user.id, email);
     } catch (error) {
         console.warn(error.message);
         return res.failServerError(error.message);
@@ -95,43 +63,47 @@ const resendCode = async (req, res) => {
         // Delete existing verify code
         await VerifyCodes.destroy({ where: { user_id: userExist.id, } });
 
-        // Creating the verify token
-        const generateCode = Math.floor(100000 + Math.random() * 900000);
-        // Creating the expire date time using moment js
-        const expire = moment().add(1, "minute");
-
-        //! Need improvement
-        // Store verify token data to the database
-        await VerifyCodes.create({ user_id: userExist.id, code: generateCode, expired_at: expire });
-
-        // Initialize nodemailer
-        const client = nodemailer.createTransport({
-            service: "Gmail",
-            auth: {
-                user: MAIL_USERNAME,
-                pass: MAIL_PASSWORD
-            }
-        });
-
-        // Sending the mail
-        client.sendMail(
-            {
-                from: MAIL_FROM_ADDRESS,
-                to: email,
-                subject: "Spatu Email Verification",
-                text: `This is your code for email verification: ${generateCode}`
-            },
-            (err, data) => {
-                if (err) {
-                    return res.failServerError(err);
-                }
-                return res.respondCreated('Please check your email');
-            }
-        );
+        await sendVerifyCode(res, userExist.id, email);
     } catch (error) {
         console.warn(error.message);
         return res.failServerError(error.message);
     }
+}
+
+const sendVerifyCode = async (res, userId, email) => {
+    // Creating the verify token
+    const generateCode = Math.floor(100000 + Math.random() * 900000);
+    // Creating the expire date time using moment js
+    const expire = moment().add(1, "minute");
+
+    //! Need improvement
+    // Store verify token data to the database
+    await VerifyCodes.create({ user_id: userId, code: generateCode, expired_at: expire });
+
+    // Initialize nodemailer
+    const client = nodemailer.createTransport({
+        service: "Gmail",
+        auth: {
+            user: MAIL_USERNAME,
+            pass: MAIL_PASSWORD
+        }
+    });
+
+    // Sending the mail
+    client.sendMail(
+        {
+            from: MAIL_FROM_ADDRESS,
+            to: email,
+            subject: "Spatu Email Verification",
+            text: `This is your code for email verification: ${generateCode}`
+        },
+        (err, data) => {
+            if (err) {
+                return res.failServerError(err);
+            }
+            return res.respondCreated('Please check your email');
+        }
+    );
 }
 
 module.exports = { register, verify, resendCode }

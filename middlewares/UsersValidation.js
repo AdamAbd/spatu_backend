@@ -26,6 +26,18 @@ const validateVerify = (req, res, next) => {
     next();
 }
 
+const validateResendCode = (req, res, next) => {
+    const schema = Joi.object({
+        email: Joi.string().email({ minDomainSegments: 2, tlds: { allow: ["com", "id"] } }).required(),
+    });
+
+    const { error, value } = schema.validate(req.body);
+    if (error) return res.failValidationError(error.message);
+    req.resendCodeValues = value;
+
+    next();
+}
+
 const validateLogin = (req, res, next) => {
     const schema = Joi.object({
         email: Joi.string().email({ minDomainSegments: 2, tlds: { allow: ["com", "id"] } }),
@@ -42,5 +54,6 @@ const validateLogin = (req, res, next) => {
 module.exports = {
     validateRegister,
     validateVerify,
+    validateResendCode,
     validateLogin,
 };

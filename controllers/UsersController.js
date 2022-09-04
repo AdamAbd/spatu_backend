@@ -28,7 +28,7 @@ const register = async (req, res) => {
         // Creating the verify token
         const generateCode = Math.floor(100000 + Math.random() * 900000);
         // Creating the expire date time using moment js
-        const expire = moment().add(1, "h");
+        const expire = moment().add(1, "minute");
 
         //! Need improvement
         // Store verify token data to the database
@@ -55,7 +55,7 @@ const register = async (req, res) => {
                 if (err) {
                     return res.failServerError(err);
                 }
-                return res.respond('Please check your email');
+                return res.respondCreated('Please check your email');
             }
         );
     } catch (error) {
@@ -83,4 +83,55 @@ const verify = async (req, res) => {
     }
 }
 
-module.exports = { register, verify }
+const resendCode = async (req, res) => {
+    try {
+        // Get all validated values from middlewares
+        const { email } = req.resendCodeValues;
+
+        // Check if email is exist or not
+        const userExist = await Users.findOne({ where: { email: email, verified_email: null } });
+        if (!userExist) return res.failUnauthorized();
+
+        // Delete existing verify code
+        await VerifyCodes.destroy({ where: { user_id: userExist.id, } });
+
+        // Creating the verify token
+        const generateCode = Math.floor(100000 + Math.random() * 900000);
+        // Creating the expire date time using moment js
+        const expire = moment().add(1, "minute");
+
+        //! Need improvement
+        // Store verify token data to the database
+        await VerifyCodes.create({ user_id: userExist.id, code: generateCode, expired_at: expire });
+
+        // Initialize nodemailer
+        const client = nodemailer.createTransport({
+            service: "Gmail",
+            auth: {
+                user: MAIL_USERNAME,
+                pass: MAIL_PASSWORD
+            }
+        });
+
+        // Sending the mail
+        client.sendMail(
+            {
+                from: MAIL_FROM_ADDRESS,
+                to: email,
+                subject: "Spatu Email Verification",
+                text: `This is your code for email verification: ${generateCode}`
+            },
+            (err, data) => {
+                if (err) {
+                    return res.failServerError(err);
+                }
+                return res.respondCreated('Please check your email');
+            }
+        );
+    } catch (error) {
+        console.warn(error.message);
+        return res.failServerError(error.message);
+    }
+}
+
+module.exports = { register, verify, resendCode }

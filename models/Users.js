@@ -23,6 +23,10 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       type: DataTypes.TEXT,
     },
+    avatar: {
+      allowNull: true,
+      type: DataTypes.TEXT,
+    },
     google_id: {
       allowNull: true,
       type: DataTypes.TEXT,

@@ -26,6 +26,7 @@ const register = async (req, res) => {
         const user = await Users.create({ username: username, email: email, password: hashPassword });
 
         await sendVerifyCode(res, user.id, email);
+        return res.respondCreated('Please check your email');
     } catch (error) {
         console.warn(error.message);
         return res.failServerError(error.message);
@@ -64,6 +65,7 @@ const resendCode = async (req, res) => {
         await VerifyCodes.destroy({ where: { user_id: userExist.id, } });
 
         await sendVerifyCode(res, userExist.id, email);
+        return res.respondCreated('Please check your email');
     } catch (error) {
         console.warn(error.message);
         return res.failServerError(error.message);
@@ -133,12 +135,52 @@ const getDetail = async (req, res) => {
     try {
         return res.respond({
             user: {
-                id: req.user.id,
-                username: req.user.username,
-                email: req.user.email,
-                created_at: req.user.created_at,
-                updated_at: req.user.updated_at,
+                id: req.verifiedUser.id,
+                username: req.verifiedUser.username,
+                email: req.verifiedUser.email,
+                created_at: req.verifiedUser.created_at,
+                updated_at: req.verifiedUser.updated_at,
             },
+        });
+    } catch (error) {
+        console.log(error.message)
+        return res.failServerError(error.message);
+    }
+}
+
+const update = async (req, res) => {
+    try {
+        const { username, email, password, avatar } = req.updateValues;
+
+        await req.verifiedUser.update({ username: username });
+
+        if (email != null) {
+            if (email == req.verifiedUser.email) return res.fail('Email must be different');
+
+            const emailExist = await Users.findOne({ where: { email: email } });
+            if (emailExist) return res.failValidationError('Email already used');
+
+            await req.verifiedUser.update({ email: email, verified_email: null });
+
+            await sendVerifyCode(res, req.verifiedUser.id, email);
+            return res.respondCreated('Please check your email');
+        }
+
+        if (password != null) {
+            const hashPassword = await bcrypt.hash(password, 10);
+
+            await req.verifiedUser.update({ password: hashPassword });
+        }
+
+        return res.respond({
+            user: {
+                id: req.verifiedUser.id,
+                username: req.verifiedUser.username,
+                email: req.verifiedUser.email,
+                created_at: req.verifiedUser.created_at,
+                updated_at: req.verifiedUser.updated_at,
+            },
+            data: { username }
         });
     } catch (error) {
         console.log(error.message)
@@ -177,9 +219,8 @@ const sendVerifyCode = async (res, userId, email) => {
             if (err) {
                 return res.failServerError(err);
             }
-            return res.respondCreated('Please check your email');
         }
     );
 }
 
-module.exports = { register, verify, resendCode, login, getDetail }
+module.exports = { register, verify, resendCode, login, getDetail, update }

@@ -21,6 +21,10 @@ module.exports = {
         allowNull: false,
         type: Sequelize.TEXT,
       },
+      avatar: {
+        allowNull: true,
+        type: Sequelize.TEXT,
+      },
       google_id: {
         allowNull: true,
         type: Sequelize.TEXT,
@@ -42,9 +46,6 @@ module.exports = {
         allowNull: false,
         type: Sequelize.DATE,
       },
-      // deleted_at: {
-      //   type: Sequelize.DATE,
-      // },
     });
   },
   async down(queryInterface, Sequelize) {

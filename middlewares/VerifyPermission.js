@@ -13,13 +13,13 @@ module.exports = (...roles) => {
         if (token == null || token[0] !== 'Bearer') return res.failUnauthorized();
 
         jwt.verify(token[1], ACCES_TOKEN_SECRET, async (err, decoded) => {
-            if (err) return res.status(403).json({ message: 'FORBIDDEN' });
+            if (err) return res.failForbidden();
 
             const user = await Users.findByPk(decoded.context.user.id);
 
             if (!roles.includes(user.role)) return res.status(405).json({ message: 'You don\'t have any permission' });
 
-            req.user = user;
+            req.verifiedUser = user;
 
             next();
         });

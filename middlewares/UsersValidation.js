@@ -51,9 +51,25 @@ const validateLogin = (req, res, next) => {
     next();
 }
 
+const validateUpdate = (req, res, next) => {
+    const schema = Joi.object({
+        username: Joi.string().min(6).max(12),
+        email: Joi.string().email({ minDomainSegments: 2, tlds: { allow: ["com", "id"] } }),
+        password: Joi.string().min(8),
+        avatar: Joi.any(),
+    });
+
+    const { error, value } = schema.validate(req.body);
+    if (error) return res.failValidationError(error.message);
+    req.updateValues = value;
+
+    next();
+}
+
 module.exports = {
     validateRegister,
     validateVerify,
     validateResendCode,
     validateLogin,
+    validateUpdate,
 };

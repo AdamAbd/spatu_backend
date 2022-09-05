@@ -129,6 +129,23 @@ const login = async (req, res) => {
     }
 }
 
+const getDetail = async (req, res) => {
+    try {
+        return res.respond({
+            user: {
+                id: req.user.id,
+                username: req.user.username,
+                email: req.user.email,
+                created_at: req.user.created_at,
+                updated_at: req.user.updated_at,
+            },
+        });
+    } catch (error) {
+        console.log(error.message)
+        return res.failServerError(error.message);
+    }
+}
+
 const sendVerifyCode = async (res, userId, email) => {
     // Creating the verify token
     const generateCode = Math.floor(100000 + Math.random() * 900000);
@@ -165,4 +182,4 @@ const sendVerifyCode = async (res, userId, email) => {
     );
 }
 
-module.exports = { register, verify, resendCode, login }
+module.exports = { register, verify, resendCode, login, getDetail }

@@ -6,7 +6,7 @@ const { Op } = require("sequelize");
 const nodemailer = require('nodemailer');
 const moment = require('moment');
 
-const { Users, VerifyCodes } = require('../models');
+const { Users, VerifyCodes, RefreshToken } = require('../models');
 
 const { ACCES_TOKEN_SECRET, REFRESH_TOKEN_SECRET, MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM_ADDRESS } = process.env;
 
@@ -70,6 +70,65 @@ const resendCode = async (req, res) => {
     }
 }
 
+const login = async (req, res) => {
+    try {
+        const { email, password } = req.loginValues;
+
+        const userExist = await Users.scope('withPassword').findOne({ where: { email: email, verified_email: { [Op.not]: null } } });
+        if (!userExist) return res.failValidationError('Credential Error');
+
+        const matchPassword = await bcrypt.compare(password, userExist.password);
+        if (!matchPassword) return res.failValidationError('Credential Error');
+
+        const accessToken = jwt.sign({
+            iss: "spatu",
+            context: {
+                user: {
+                    id: userExist.id,
+                    email: userExist.email,
+                },
+                roles: "user"
+            },
+        }, ACCES_TOKEN_SECRET, {
+            expiresIn: '30m',
+        });
+
+        const refreshToken = jwt.sign({
+            iss: "spatu",
+            context: {
+                user: {
+                    id: userExist.id,
+                    email: userExist.email,
+                },
+                roles: "user"
+            },
+        }, REFRESH_TOKEN_SECRET, {
+            expiresIn: '1d',
+        });
+
+        await RefreshToken.create({ user_id: userExist.id, token: refreshToken });
+
+        res.cookie('spatu_token', refreshToken, {
+            httpOnly: true,
+            maxAge: 24 * 60 * 60 * 1000,
+        });
+
+        return res.respond({
+            user: {
+                id: userExist.id,
+                username: userExist.username,
+                email: userExist.email,
+                created_at: userExist.created_at,
+                updated_at: userExist.updated_at,
+            },
+            access_token: accessToken,
+        });
+    } catch (error) {
+        console.warn(error);
+        return res.failServerError(error.message);
+    }
+}
+
 const sendVerifyCode = async (res, userId, email) => {
     // Creating the verify token
     const generateCode = Math.floor(100000 + Math.random() * 900000);
@@ -106,4 +165,4 @@ const sendVerifyCode = async (res, userId, email) => {
     );
 }
 
-module.exports = { register, verify, resendCode }
+module.exports = { register, verify, resendCode, login }

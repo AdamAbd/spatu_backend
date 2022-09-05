@@ -40,7 +40,7 @@ const validateResendCode = (req, res, next) => {
 
 const validateLogin = (req, res, next) => {
     const schema = Joi.object({
-        email: Joi.string().email({ minDomainSegments: 2, tlds: { allow: ["com", "id"] } }),
+        email: Joi.string().email({ minDomainSegments: 2, tlds: { allow: ["com", "id"] } }).required(),
         password: Joi.string().min(8).required(),
     });
 

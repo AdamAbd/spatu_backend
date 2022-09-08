@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\SendCodeMail;
+use App\Mail\SendVerificationCode;
+use App\Mail\VerifyCodeMail;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
@@ -29,7 +33,7 @@ class AuthController extends Controller
             $user->password = bcrypt($request->password);
 
             if ($user->save()) {
-                
+                Mail::to($request->email)->send(new VerifyCodeMail(143567));
 
                 return response()->json([
                     'message' => 'Success',

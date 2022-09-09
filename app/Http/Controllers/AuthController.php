@@ -48,6 +48,37 @@ class AuthController extends Controller
         }
     }
 
+    /// @route   POST auth/verify
+    /// @desc    Verify all user email
+    /// @access  Public
+    public function verify(Request $request)
+    {
+        //* Validate all request
+        $validator = Validator::make($request->all(), [
+            'code' => ['required', 'integer', 'min:100000', 'max:999999'],
+        ]);
+
+        //* Check if request is not valid
+        if ($validator->fails()) {
+            return ResponseHelper::failValidationError($validator->errors()->first());
+        }
+
+        try {
+            $verifyCodesExist = VerifyCodes::where('code', $request->code)->whereDate('expired_at', '>=', Carbon::now())->first();
+            if (!$verifyCodesExist) {
+                return ResponseHelper::failUnauthorized();
+            }
+
+            User::where('id', $verifyCodesExist->user_id)->update(['email_verified_at' => Carbon::now()]);
+
+            $verifyCodesExist->delete();
+
+            return ResponseHelper::respond('Your email verification success');
+        } catch (\Throwable $e) {
+            return ResponseHelper::failServerError($e->getMessage());
+        }
+    }
+
     /// @route   
     /// @desc    Create verification code and send to user email
     /// @access  Private
@@ -66,7 +97,7 @@ class AuthController extends Controller
 
             //* Mail verification code to user
             Mail::to($email)->send(new VerifyCodeMail($randomCode));
-            
+
             //* Return success response
             return ResponseHelper::respondCreated("Please check your email", null);
 

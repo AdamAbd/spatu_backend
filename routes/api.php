@@ -18,4 +18,5 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
 
     Route::post('/auth/register', [AuthController::class, 'register'])->name('auth.register');
+    Route::post('/auth/verify', [AuthController::class, 'verify'])->name('auth.verify');
 });

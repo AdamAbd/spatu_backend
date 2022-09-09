@@ -32,18 +32,27 @@ class AuthController extends Controller
             $user->password = bcrypt($request->password);
 
             if ($user->save()) {
-                $randomCode = rand(100000, 999999);
-
-                $verifyCodes = new VerifyCodes();
-                $verifyCodes->user_id = $user->id;
-                $verifyCodes->code = $randomCode;
-                $verifyCodes->expired_at = Carbon::now()->addMinute(10);
-                $verifyCodes->save();
-
-                Mail::to($request->email)->send(new VerifyCodeMail($randomCode));
-
-                return ResponseHelper::respondCreated("Please check your email", null);
+                return $this->sendVerifyCode($user->id, $user->email);
             }
+        } catch (\Exception $e) {
+            return ResponseHelper::failServerError($e->getMessage());
+        }
+    }
+
+    public function sendVerifyCode($userId, $email)
+    {
+        try {
+            $randomCode = rand(100000, 999999);
+
+            $verifyCodes = new VerifyCodes();
+            $verifyCodes->user_id = $userId;
+            $verifyCodes->code = $randomCode;
+            $verifyCodes->expired_at = Carbon::now()->addMinute(10);
+            $verifyCodes->save();
+
+            Mail::to($email)->send(new VerifyCodeMail($randomCode));
+
+            return ResponseHelper::respondCreated("Please check your email", null);
         } catch (\Exception $e) {
             return ResponseHelper::failServerError($e->getMessage());
         }

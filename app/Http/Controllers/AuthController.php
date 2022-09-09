@@ -2,8 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Mail\SendCodeMail;
-use App\Mail\SendVerificationCode;
+use App\Http\Helper\ResponseHelper;
 use App\Mail\VerifyCodeMail;
 use App\Models\User;
 use App\Models\VerifyCodes;
@@ -23,9 +22,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'message' => $validator->errors()->first()
-            ], 422);
+            return ResponseHelper::failValidationError($validator->errors()->first());
         }
 
         try {
@@ -45,15 +42,10 @@ class AuthController extends Controller
 
                 Mail::to($request->email)->send(new VerifyCodeMail($randomCode));
 
-                return response()->json([
-                    'message' => 'Success',
-                ], 201);
+                return ResponseHelper::respondCreated("Please check your email", null);
             }
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => $e->getMessage(),
-                'user' => null
-            ]);
+            return ResponseHelper::failServerError($e->getMessage());
         }
     }
 }

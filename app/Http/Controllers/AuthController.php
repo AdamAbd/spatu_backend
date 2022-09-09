@@ -64,16 +64,23 @@ class AuthController extends Controller
         }
 
         try {
+            //* Find VerifyCode where code = request code and expire_at date is greater than date now in database
             $verifyCodesExist = VerifyCodes::where('code', $request->code)->whereDate('expired_at', '>=', Carbon::now())->first();
+            //* If verify code not exist return unauthorized response
             if (!$verifyCodesExist) {
                 return ResponseHelper::failUnauthorized();
             }
 
+            //* Update email verified to date now in table users where id
             User::where('id', $verifyCodesExist->user_id)->update(['email_verified_at' => Carbon::now()]);
 
+            //* Delete column verify code
             $verifyCodesExist->delete();
-
+            
+            //* Return success response
             return ResponseHelper::respond('Your email verification success');
+
+            //* Catch all error and return it
         } catch (\Throwable $e) {
             return ResponseHelper::failServerError($e->getMessage());
         }
@@ -86,6 +93,7 @@ class AuthController extends Controller
     {
         try {
             //* Create random verification code with length of 6
+            //TODO: Refactor $randomCode so it will be unique
             $randomCode = rand(100000, 999999);
 
             //* Save all data to database

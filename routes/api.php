@@ -19,4 +19,5 @@ Route::prefix('v1')->group(function () {
 
     Route::post('/auth/register', [AuthController::class, 'register'])->name('auth.register');
     Route::post('/auth/verify', [AuthController::class, 'verify'])->name('auth.verify');
+    Route::post('/auth/resend_code', [AuthController::class, 'resendCode'])->name('auth.resendCode');
 });

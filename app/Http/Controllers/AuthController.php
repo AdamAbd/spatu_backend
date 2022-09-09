@@ -76,9 +76,44 @@ class AuthController extends Controller
 
             //* Delete column verify code
             $verifyCodesExist->delete();
-            
+
             //* Return success response
             return ResponseHelper::respond('Your email verification success');
+
+            //* Catch all error and return it
+        } catch (\Throwable $e) {
+            return ResponseHelper::failServerError($e->getMessage());
+        }
+    }
+
+    /// @route   POST auth/resend_code
+    /// @desc    Resend verify code
+    /// @access  Public
+    public function resendCode(Request $request)
+    {
+        //* Validate all request
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'string', 'email'],
+        ]);
+
+        //* Check if request is not valid
+        if ($validator->fails()) {
+            return ResponseHelper::failValidationError($validator->errors()->first());
+        }
+
+        try {
+            //* Find User where email and email verified at is null
+            $userExist = User::where('email', $request->email)->where('email_verified_at', null)->first();
+            //* If verify code not exist return unauthorized response
+            if (!$userExist) {
+                return ResponseHelper::failUnauthorized();
+            }
+
+            //* Delete column verify code
+            VerifyCodes::where('user_id', $userExist->id)->delete();
+
+            //* Return success response
+            return $this->sendVerifyCode($userExist->id, $userExist->email);
 
             //* Catch all error and return it
         } catch (\Throwable $e) {

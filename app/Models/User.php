@@ -33,6 +33,8 @@ class User extends Model
      */
     protected $hidden = [
         'password',
+        'google_id',
+        'deleted_at',
     ];
 
     /**

@@ -50,6 +50,7 @@ class AuthController extends Controller
 
     /// @route   POST auth/verify
     /// @desc    Verify all user email
+    /// @desc    Verify user email and reset password
     /// @access  Public
     public function verify(Request $request)
     {
@@ -139,6 +140,7 @@ class AuthController extends Controller
             $verifyCodes->save();
 
             //* Mail verification code to user
+            //TODO: Make subject of mail dynamic
             Mail::to($email)->send(new VerifyCodeMail($randomCode));
 
             //* Return success response

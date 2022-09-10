@@ -25,7 +25,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/login', [AuthController::class, 'login'])->name('auth.login');
     });
 
-    Route::group(['middleware' => ['auth:sanctum']], function () {
+    Route::group(['middleware' => ['auth:sanctum', 'ability:user|accessToken']], function () {
 
         Route::get('/user', [AuthController::class, 'user'])->name('auth.user');
     });

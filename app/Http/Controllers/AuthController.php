@@ -156,8 +156,8 @@ class AuthController extends Controller
             //* Creating two types of token
             //* Access Token used for accesing user only API routes with limited time (30 minute)
             //* Refresh Token used for refresh Access Token after 30 minute 
-            $accessToken = $userExist->createToken('access-token', ['role:user'], Carbon::now()->addMinute(30))->plainTextToken;
-            $refreshToken = $userExist->createToken('refresh-token', ['role:user'], Carbon::now()->addDay(30))->plainTextToken;
+            $accessToken = $userExist->createToken('access-token', ['user|accessToken'], Carbon::now()->addMinute(30))->plainTextToken;
+            $refreshToken = $userExist->createToken('refresh-token', ['user|refreshToken'], Carbon::now()->addDay(30))->plainTextToken;
 
             //* Creating cookie with Refresh Token and live only 30 day
             $cookie = cookie('token', $refreshToken, 60 * 24 * 30);

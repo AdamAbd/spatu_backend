@@ -29,4 +29,9 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/user', [AuthController::class, 'user'])->name('auth.user');
     });
+
+    Route::group(['middleware' => ['auth:sanctum', 'ability:user|refreshToken']], function () {
+
+        Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
+    });
 });

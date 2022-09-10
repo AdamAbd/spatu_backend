@@ -183,6 +183,13 @@ class AuthController extends Controller
         }
     }
 
+    public function logout(Request $request)
+    {
+        $request->user()->tokens()->delete();
+
+        return ResponseHelper::responDeleted('Success Logout', null)->withCookie(Cookie::forget('token'));
+    }
+
     /// @route   
     /// @desc    Create verification code and send to user email
     /// @access  Private

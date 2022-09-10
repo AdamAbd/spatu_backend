@@ -124,6 +124,9 @@ class AuthController extends Controller
         }
     }
 
+    /// @route   POST auth/login
+    /// @desc    Verified email user login with correct email and password
+    /// @access  Public
     public function login(Request $request)
     {
         //* Validate all request
@@ -138,19 +141,34 @@ class AuthController extends Controller
         }
 
         try {
+            //* Check user email, password, and google where is null
             $userExist = User::where('email', $request->email)->where('google_id', null)->first();
             if (!$userExist || !Hash::check($request->password, $userExist->password)) {
+                //* Return credential error for more secure
                 return ResponseHelper::failValidationError('Credential Error');
             }
-            $accessToken = $userExist->createToken('access-token', ['user-access'])->plainTextToken;
-            $refreshToken = $userExist->createToken('refresh-token', ['user-access'])->plainTextToken;
 
-            $cookie = cookie('token',   $refreshToken,   7200);
+            //* Check user is already verified their emails or not
+            if ($userExist->email_verified_at == null) {
+                return ResponseHelper::failUnauthorized('Email not verified');
+            }
 
+            //* Creating two types of token
+            //* Access Token used for accesing user only API routes with limited time (30 minute)
+            //* Refresh Token used for refresh Access Token after 30 minute 
+            $accessToken = $userExist->createToken('access-token', ['role:user'], Carbon::now()->addMinute(30))->plainTextToken;
+            $refreshToken = $userExist->createToken('refresh-token', ['role:user'], Carbon::now()->addDay(30))->plainTextToken;
+
+            //* Creating cookie with Refresh Token and live only 30 day
+            $cookie = cookie('token', $refreshToken, 60 * 24 * 30);
+
+            //* Return success with data of user and Access Token while sending the cookie
             return ResponseHelper::respond('Success Login', [
                 'user' => $userExist,
                 'access_token' => $accessToken,
             ])->withCookie($cookie);
+
+            //* Catch all error and return it
         } catch (\Throwable $e) {
             return ResponseHelper::failServerError($e->getMessage());
         }
@@ -159,24 +177,7 @@ class AuthController extends Controller
     public function user(Request $request)
     {
         try {
-            // $user = auth()->user();
-
-            // $value = $request->hasCookie('token');
-            // return ResponseHelper::respond('Success', ['user' => $user, 'token' => $value])
-            //     ->withCookie(Cookie::forget('token'));
-
-            $user = User::where('id', auth()->user()->id)->first();
-
-            // $token_list = [];
-
-            foreach ($user->tokens as $token) {
-                if ($token->name == 'access-token') {
-                    $user->tokens()->where('id', $token->id)->delete();
-                }
-            }
-
-            // return ResponseHelper::respond('Success', $token_list);
-            return ResponseHelper::respond('Success', ['user' => $user, 'token' => $user->tokens]);
+            return ResponseHelper::respond('Success', ['user' => $request->user()]);
         } catch (\Throwable $e) {
             return ResponseHelper::failServerError($e->getMessage());
         }

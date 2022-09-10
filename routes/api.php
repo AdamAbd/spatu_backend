@@ -17,7 +17,12 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
 
-    Route::post('/auth/register', [AuthController::class, 'register'])->name('auth.register');
-    Route::post('/auth/verify', [AuthController::class, 'verify'])->name('auth.verify');
-    Route::post('/auth/resend_code', [AuthController::class, 'resendCode'])->name('auth.resendCode');
+    Route::group(['middleware' => 'api', 'prefix' => 'auth'], function () {
+
+        Route::post('/register', [AuthController::class, 'register'])->name('auth.register');
+        Route::post('/verify', [AuthController::class, 'verify'])->name('auth.verify');
+        Route::post('/resend_code', [AuthController::class, 'resendCode'])->name('auth.resendCode');
+        Route::post('/login', [AuthController::class, 'login'])->name('auth.login');
+        Route::get('/user', [AuthController::class, 'user'])->name('auth.user');
+    });
 });

@@ -8,11 +8,23 @@ use App\Models\User;
 use App\Models\VerifyCodes;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
+    /**
+     * Create a new AuthController instance.
+     *
+     * @return void
+     */
+    public function __construct()
+    {
+        $this->middleware('auth:api', ['except' => ['register', 'verify', 'resendCode', 'login']]);
+    }
+
     /// @route   POST auth/register
     /// @desc    Register new user and send the verification code to their email
     /// @access  Public
@@ -118,6 +130,48 @@ class AuthController extends Controller
 
             //* Catch all error and return it
         } catch (\Throwable $e) {
+            return ResponseHelper::failServerError($e->getMessage());
+        }
+    }
+
+    public function login(Request $request)
+    {
+        //* Validate all request
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'string', 'email'],
+            'password' => ['required', 'string', 'min:8'],
+        ]);
+
+        //* Check if request is not valid
+        if ($validator->fails()) {
+            return ResponseHelper::failValidationError($validator->errors()->first());
+        }
+
+        try {
+            $userExist = User::where('email', $request->email)->where('google_id', null)->first();
+            if (!$userExist || !Hash::check($request->password, $userExist->password)) {
+                return ResponseHelper::failValidationError('Credential Error');
+            }
+
+            $cookie = cookie('token', auth()->login($userExist), 7200);
+
+            return ResponseHelper::respond('Success Login', [
+                'user' => $userExist,
+            ])->withCookie($cookie);
+        } catch (\Throwable $e) {
+            return ResponseHelper::failServerError($e->getMessage());
+        }
+    }
+
+    public function user(Request $request)
+    {
+        try {
+            $user = auth()->user();
+
+            $value = $request->hasCookie('token');
+            return ResponseHelper::respond('Success', ['user' => $user, 'token' => $value])
+                ->withCookie(Cookie::forget('token'));
+        } catch (\Tymon\JWTAuth\Exceptions\UserNotDefinedException $e) {
             return ResponseHelper::failServerError($e->getMessage());
         }
     }

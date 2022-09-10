@@ -15,16 +15,6 @@ use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
-    /**
-     * Create a new AuthController instance.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-        $this->middleware('auth:api', ['except' => ['register', 'verify', 'resendCode', 'login']]);
-    }
-
     /// @route   POST auth/register
     /// @desc    Register new user and send the verification code to their email
     /// @access  Public
@@ -152,11 +142,14 @@ class AuthController extends Controller
             if (!$userExist || !Hash::check($request->password, $userExist->password)) {
                 return ResponseHelper::failValidationError('Credential Error');
             }
+            $accessToken = $userExist->createToken('access-token', ['user-access'])->plainTextToken;
+            $refreshToken = $userExist->createToken('refresh-token', ['user-access'])->plainTextToken;
 
-            $cookie = cookie('token', auth()->login($userExist), 7200);
+            $cookie = cookie('token',   $refreshToken,   7200);
 
             return ResponseHelper::respond('Success Login', [
                 'user' => $userExist,
+                'access_token' => $accessToken,
             ])->withCookie($cookie);
         } catch (\Throwable $e) {
             return ResponseHelper::failServerError($e->getMessage());
@@ -166,12 +159,25 @@ class AuthController extends Controller
     public function user(Request $request)
     {
         try {
-            $user = auth()->user();
+            // $user = auth()->user();
 
-            $value = $request->hasCookie('token');
-            return ResponseHelper::respond('Success', ['user' => $user, 'token' => $value])
-                ->withCookie(Cookie::forget('token'));
-        } catch (\Tymon\JWTAuth\Exceptions\UserNotDefinedException $e) {
+            // $value = $request->hasCookie('token');
+            // return ResponseHelper::respond('Success', ['user' => $user, 'token' => $value])
+            //     ->withCookie(Cookie::forget('token'));
+
+            $user = User::where('id', auth()->user()->id)->first();
+
+            // $token_list = [];
+
+            foreach ($user->tokens as $token) {
+                if ($token->name == 'access-token') {
+                    $user->tokens()->where('id', $token->id)->delete();
+                }
+            }
+
+            // return ResponseHelper::respond('Success', $token_list);
+            return ResponseHelper::respond('Success', ['user' => $user, 'token' => $user->tokens]);
+        } catch (\Throwable $e) {
             return ResponseHelper::failServerError($e->getMessage());
         }
     }

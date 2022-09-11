@@ -31,7 +31,8 @@
         },
         "files": [
             "app/Http/Helper/ResponseHelper.php",
-            "app/Http/Helper/ResponseCode.php"
+            "app/Http/Helper/ResponseCode.php",
+            "app/Http/Helper/SendMailHelper.php"
         ]
     },
     "autoload-dev": {

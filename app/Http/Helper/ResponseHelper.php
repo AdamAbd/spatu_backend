@@ -30,7 +30,7 @@ class ResponseHelper
         return ResponseHelper::respond($message, $data, ResponseCode::deleted);
     }
 
-    public static function responUpdated($message, $data)
+    public static function respondUpdated($message, $data)
     {
         return ResponseHelper::respond($message, $data, ResponseCode::updated);
     }

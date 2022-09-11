@@ -33,6 +33,7 @@ Route::prefix('v1')->group(function () {
         Route::group(['prefix' => 'user'], function () {
 
             Route::get('/detail', [UserController::class, 'detail'])->name('user.detail');
+            Route::put('/update', [UserController::class, 'update'])->name('user.update');
         });
     });
 

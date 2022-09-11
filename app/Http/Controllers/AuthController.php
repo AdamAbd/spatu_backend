@@ -59,6 +59,7 @@ class AuthController extends Controller
         //* Validate all request
         $validator = Validator::make($request->all(), [
             'code' => ['required', 'integer', 'min:100000', 'max:999999'],
+            'type' => ['required', 'string', 'in:email,reset'],
         ]);
 
         //* Check if request is not valid
@@ -67,15 +68,25 @@ class AuthController extends Controller
         }
 
         try {
-            //* Find VerifyCode where code = request code and expire_at date is greater than date now in database
-            $verifyCodesExist = VerifyCodes::where('code', $request->code)->whereDate('expired_at', '>=', Carbon::now())->first();
-            //* If verify code not exist return unauthorized response
+            //* Find VerifyCode where code = request code and expire_at date is greater than date now in database 
+            //* and return unauthorized response if not exist
+            $verifyCodesExist = VerifyCodes::where('code', $request->code)
+                ->whereDate('expired_at', '>=', Carbon::now())
+                ->first();
             if (!$verifyCodesExist) {
                 return ResponseHelper::failUnauthorized();
             }
 
-            //* Update email verified to date now in table users where id
-            User::where('id', $verifyCodesExist->user_id)->update(['email_verified_at' => Carbon::now()]);
+            if ($request->type == 'email' && $verifyCodesExist->type != 'email') {
+                return ResponseHelper::failUnauthorized();
+            } else {
+                //* Update email verified to date now in table users where id
+                User::where('id', $verifyCodesExist->user_id)->update(['email_verified_at' => Carbon::now()]);
+            }
+
+            if ($request->type == 'reset' && $verifyCodesExist->type != 'reset') {
+                return ResponseHelper::failUnauthorized();
+            }
 
             //* Delete column verify code
             $verifyCodesExist->delete();
@@ -97,6 +108,7 @@ class AuthController extends Controller
         //* Validate all request
         $validator = Validator::make($request->all(), [
             'email' => ['required', 'string', 'email'],
+            'type' => ['required', 'string', 'in:email,reset'],
         ]);
 
         //* Check if request is not valid
@@ -106,9 +118,17 @@ class AuthController extends Controller
 
         try {
             //* Find User where email and email verified at is null
-            $userExist = User::where('email', $request->email)->where('email_verified_at', null)->first();
+            $userExist = User::where('email', $request->email)->first();
             //* If verify code not exist return unauthorized response
             if (!$userExist) {
+                return ResponseHelper::failUnauthorized();
+            }
+
+            if ($request->type == 'email' && $userExist->email_verified_at != null) {
+                return ResponseHelper::failUnauthorized();
+            }
+
+            if ($request->type == 'reset' && $userExist->email_verified_at == null) {
                 return ResponseHelper::failUnauthorized();
             }
 
@@ -116,7 +136,7 @@ class AuthController extends Controller
             VerifyCodes::where('user_id', $userExist->id)->delete();
 
             //* Return success response
-            return $this->sendVerifyCode($userExist->id, $userExist->email);
+            return $this->sendVerifyCode($userExist->id, $userExist->email, $request->type);
 
             //* Catch all error and return it
         } catch (\Throwable $e) {
@@ -195,7 +215,7 @@ class AuthController extends Controller
     /// @route   
     /// @desc    Create verification code and send to user email
     /// @access  Private
-    public function sendVerifyCode($userId, $email)
+    public function sendVerifyCode($userId, $email, $type = 'email')
     {
         try {
             //* Create random verification code with length of 6
@@ -207,6 +227,7 @@ class AuthController extends Controller
             $verifyCodes->user_id = $userId;
             $verifyCodes->code = $randomCode;
             $verifyCodes->expired_at = Carbon::now()->addMinute(10);
+            $verifyCodes->type = $type;
             $verifyCodes->save();
 
             //* Mail verification code to user

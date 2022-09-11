@@ -174,15 +174,6 @@ class AuthController extends Controller
         }
     }
 
-    public function user(Request $request)
-    {
-        try {
-            return ResponseHelper::respond('Success', ['user' => $request->user()]);
-        } catch (\Throwable $e) {
-            return ResponseHelper::failServerError($e->getMessage());
-        }
-    }
-
     public function logout(Request $request)
     {
         $request->user()->tokens()->delete();

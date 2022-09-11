@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\RefreshTokenController;
+use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -28,7 +29,10 @@ Route::prefix('v1')->group(function () {
 
     Route::group(['middleware' => ['auth:sanctum', 'ability:user|accessToken']], function () {
 
-        Route::get('/user', [AuthController::class, 'user'])->name('auth.user');
+        Route::group(['prefix' => 'user'], function () {
+
+            Route::get('/detail', [UserController::class, 'detail'])->name('user.detail');
+        });
     });
 
     Route::group(['middleware' => ['auth:sanctum', 'ability:user|refreshToken']], function () {

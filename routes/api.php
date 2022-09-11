@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\RefreshTokenController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -33,5 +34,6 @@ Route::prefix('v1')->group(function () {
     Route::group(['middleware' => ['auth:sanctum', 'ability:user|refreshToken']], function () {
 
         Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
+        Route::post('/refresh-token', [RefreshTokenController::class, 'refreshToken'])->name('auth.refreshToken');
     });
 });

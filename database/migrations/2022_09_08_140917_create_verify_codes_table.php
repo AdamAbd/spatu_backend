@@ -18,6 +18,7 @@ return new class extends Migration
             $table->uuid('user_id');
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->integer('code')->unique();
+            $table->enum('type', ['email', 'reset'])->default('email');
             $table->dateTimeTz('expired_at', $precision = 0);
             $table->timestamps();
         });

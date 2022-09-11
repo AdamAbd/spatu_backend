@@ -19,6 +19,7 @@ class VerifyCodes extends Model
     protected $fillable = [
         'user_id',
         'code',
+        'type',
         'expired_at',
     ];
 }

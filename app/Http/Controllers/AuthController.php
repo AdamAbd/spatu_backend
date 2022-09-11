@@ -60,6 +60,7 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'code' => ['required', 'integer', 'min:100000', 'max:999999'],
             'type' => ['required', 'string', 'in:email,reset'],
+            'password' => ['required_if:type,reset', 'string', 'min:8', 'confirmed'],
         ]);
 
         //* Check if request is not valid
@@ -77,15 +78,22 @@ class AuthController extends Controller
                 return ResponseHelper::failUnauthorized();
             }
 
-            if ($request->type == 'email' && $verifyCodesExist->type != 'email') {
+            if ($request->type != $verifyCodesExist->type) {
                 return ResponseHelper::failUnauthorized();
-            } else {
+            } elseif ($request->type == 'email') {
                 //* Update email verified to date now in table users where id
                 User::where('id', $verifyCodesExist->user_id)->update(['email_verified_at' => Carbon::now()]);
-            }
+            } else {
+                $userExist = User::where('id', $verifyCodesExist->user_id)->whereNot('email_verified_at', null)->first();
 
-            if ($request->type == 'reset' && $verifyCodesExist->type != 'reset') {
-                return ResponseHelper::failUnauthorized();
+                if (!$userExist) {
+                    return ResponseHelper::failUnauthorized();
+                }
+
+                $userExist->password = bcrypt($request->password);
+                $userExist->save();
+
+                return ResponseHelper::respond();
             }
 
             //* Delete column verify code
@@ -205,6 +213,36 @@ class AuthController extends Controller
 
             //* Return Success Logout and also delete the cookie
             return ResponseHelper::responDeleted('Success Logout', null)->withCookie(Cookie::forget('token'));
+
+            //* Catch all error and return it
+        } catch (\Throwable $e) {
+            return ResponseHelper::failServerError($e->getMessage());
+        }
+    }
+
+    public function reset(Request $request)
+    {
+        //* Validate all request
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'string', 'email'],
+        ]);
+
+        //* Check if request is not valid
+        if ($validator->fails()) {
+            return ResponseHelper::failValidationError($validator->errors()->first());
+        }
+
+        try {
+            //* Check user where email or email already verified or not
+            $userExist = User::where('email', $request->email)->first();
+            if (!$userExist || $userExist->email_verified_at == null) {
+                //* Return email not found
+                return ResponseHelper::failNotFound('Email not found');
+            }
+
+
+            // //* Run logic when user is save send verify code to user email
+            return $this->sendVerifyCode($userExist->id, $userExist->email, 'reset');
 
             //* Catch all error and return it
         } catch (\Throwable $e) {

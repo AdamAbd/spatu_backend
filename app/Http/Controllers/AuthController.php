@@ -91,8 +91,6 @@ class AuthController extends Controller
 
                 $userExist->password = bcrypt($request->password);
                 $userExist->save();
-
-                return ResponseHelper::respond();
             }
 
             //* Delete column verify code

@@ -3,14 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Http\Helper\ResponseHelper;
-use App\Mail\VerifyCodeMail;
+use App\Http\Helper\SendMailHelper;
 use App\Models\User;
 use App\Models\VerifyCodes;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
@@ -41,7 +40,7 @@ class AuthController extends Controller
 
             //* Run logic when user is save send verify code to user email
             if ($user->save()) {
-                return $this->sendVerifyCode($user->id, $user->email);
+                return SendMailHelper::sendVerifyCode($user->id, $user->email);
             }
 
             //* Catch all error and return it
@@ -144,7 +143,7 @@ class AuthController extends Controller
             VerifyCodes::where('user_id', $userExist->id)->delete();
 
             //* Return success response
-            return $this->sendVerifyCode($userExist->id, $userExist->email, $request->type);
+            return SendMailHelper::sendVerifyCode($userExist->id, $userExist->email, $request->type);
 
             //* Catch all error and return it
         } catch (\Throwable $e) {
@@ -220,6 +219,12 @@ class AuthController extends Controller
         }
     }
 
+    public function google(Request $request)
+    {
+        # code...
+        //TODO: Update google_id user if they already register with the same email as their google email
+    }
+
     public function reset(Request $request)
     {
         //* Validate all request
@@ -242,41 +247,10 @@ class AuthController extends Controller
 
 
             // //* Run logic when user is save send verify code to user email
-            return $this->sendVerifyCode($userExist->id, $userExist->email, 'reset');
+            return SendMailHelper::sendVerifyCode($userExist->id, $userExist->email, 'reset');
 
             //* Catch all error and return it
         } catch (\Throwable $e) {
-            return ResponseHelper::failServerError($e->getMessage());
-        }
-    }
-
-    /// @route   
-    /// @desc    Create verification code and send to user email
-    /// @access  Private
-    public function sendVerifyCode($userId, $email, $type = 'email')
-    {
-        try {
-            //* Create random verification code with length of 6
-            //TODO: Refactor $randomCode so it will be unique
-            $randomCode = rand(100000, 999999);
-
-            //* Save all data to database
-            $verifyCodes = new VerifyCodes();
-            $verifyCodes->user_id = $userId;
-            $verifyCodes->code = $randomCode;
-            $verifyCodes->expired_at = Carbon::now()->addMinute(10);
-            $verifyCodes->type = $type;
-            $verifyCodes->save();
-
-            //* Mail verification code to user
-            //TODO: Make subject of mail dynamic
-            Mail::to($email)->send(new VerifyCodeMail($randomCode));
-
-            //* Return success response
-            return ResponseHelper::respondCreated("Please check your email", null);
-
-            //* Catch all error and return it
-        } catch (\Exception $e) {
             return ResponseHelper::failServerError($e->getMessage());
         }
     }

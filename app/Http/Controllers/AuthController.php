@@ -144,7 +144,7 @@ class AuthController extends Controller
             //* Check user email, password, and google where is null
             $userExist = User::where('email', $request->email)->where('google_id', null)->first();
             if (!$userExist || !Hash::check($request->password, $userExist->password)) {
-                //* Return credential error for more secure
+                //* Return credential error for security purpose
                 return ResponseHelper::failValidationError('Credential Error');
             }
 
@@ -174,11 +174,22 @@ class AuthController extends Controller
         }
     }
 
+    /// @route   POST auth/logout
+    /// @desc    Delete all user token (Access Token and Refresh Token) and delete the cookie
+    /// @access  Public
     public function logout(Request $request)
     {
-        $request->user()->tokens()->delete();
+        try {
+            //* Delete user token
+            $request->user()->tokens()->delete();
 
-        return ResponseHelper::responDeleted('Success Logout', null)->withCookie(Cookie::forget('token'));
+            //* Return Success Logout and also delete the cookie
+            return ResponseHelper::responDeleted('Success Logout', null)->withCookie(Cookie::forget('token'));
+
+            //* Catch all error and return it
+        } catch (\Throwable $e) {
+            return ResponseHelper::failServerError($e->getMessage());
+        }
     }
 
     /// @route   

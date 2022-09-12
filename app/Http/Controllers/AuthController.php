@@ -199,6 +199,60 @@ class AuthController extends Controller
         }
     }
 
+    public function google(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'username' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email'],
+            'avatar' => ['required', 'string', 'max:255'],
+            'google_id' => ['required', 'string', 'max:255'],
+        ]);
+
+        if ($validator->fails()) {
+            return ResponseHelper::failValidationError($validator->errors()->first());
+        }
+
+        try {
+            $userExist = User::where('email', $request->email)->first();
+
+            if ($userExist && !empty($userExist->google_id) && $userExist->google_id != $request->google_id) {
+                return ResponseHelper::failUnauthorized();
+
+                //* blablabla
+            } elseif ($userExist && $userExist->google_id == $request->google_id) {
+                $userExist->avatar = $request->avatar;
+                $userExist->save();
+
+                //* blablabla
+            } elseif ($userExist && $userExist->google_id == null) {
+                $userExist->google_id = $request->google_id;
+                $userExist->avatar = $request->avatar;
+                $userExist->email_verified_at = Carbon::now();
+                $userExist->save();
+
+                //* blablablabla
+            } else {
+                $rand = rand(100000, 999999);
+
+                $user = new User();
+                $user->username = $request->username;
+                $user->email = $request->email;
+                $user->password = bcrypt($rand);
+                $user->google_id = $request->google_id;
+                $user->avatar = $request->avatar;
+                $user->email_verified_at = Carbon::now();
+
+                if ($user->save()) {
+                    return ResponseHelper::respondWithToken($user);
+                }
+            }
+
+            return ResponseHelper::respondWithToken($userExist);
+        } catch (\Throwable $e) {
+            return ResponseHelper::failServerError($e->getMessage());
+        }
+    }
+
     /// @route   POST auth/logout
     /// @desc    Delete all user token (Access Token and Refresh Token) and delete the cookie
     /// @access  Public
@@ -215,12 +269,6 @@ class AuthController extends Controller
         } catch (\Throwable $e) {
             return ResponseHelper::failServerError($e->getMessage());
         }
-    }
-
-    public function google(Request $request)
-    {
-        # code...
-        //TODO: Update google_id user if they already register with the same email as their google email
     }
 
     public function reset(Request $request)

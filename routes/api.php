@@ -25,6 +25,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/verify', [AuthController::class, 'verify'])->name('auth.verify');
         Route::post('/resend_code', [AuthController::class, 'resendCode'])->name('auth.resendCode');
         Route::post('/login', [AuthController::class, 'login'])->name('auth.login');
+        Route::post('/google', [AuthController::class, 'google'])->name('auth.google');
         Route::put('/reset', [AuthController::class, 'reset'])->name('auth.reset');
     });
 

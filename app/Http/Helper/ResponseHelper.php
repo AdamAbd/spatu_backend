@@ -3,6 +3,8 @@
 namespace App\Http\Helper;
 
 use App\Http\Helper\ResponseCode;
+use App\Models\User;
+use Carbon\Carbon;
 
 class ResponseHelper
 {
@@ -78,5 +80,29 @@ class ResponseHelper
     public static function failServerError($message = 'Internal Server Error')
     {
         return ResponseHelper::fail($message, ResponseCode::server_error);
+    }
+
+    public static function respondWithToken(User $user)
+    {
+        try {
+            //* Creating two types of token
+            //* Access Token used for accesing user only API routes with limited time (30 minute)
+            //* Refresh Token used for refresh Access Token after 30 minute 
+            $accessToken = $user->createToken('access-token', ['user|accessToken'], Carbon::now()->addMinute(30))->plainTextToken;
+            $refreshToken = $user->createToken('refresh-token', ['user|refreshToken'], Carbon::now()->addDay(30))->plainTextToken;
+
+            //* Creating cookie with Refresh Token and live only 30 day
+            $cookie = cookie('token', $refreshToken, 60 * 24 * 30);
+
+            //* Return success with data of user and Access Token while sending the cookie
+            return ResponseHelper::respond('Success Login', [
+                'user' => $user,
+                'access_token' => $accessToken,
+            ])->withCookie($cookie);
+
+            //* Catch all error and return it
+        } catch (\Throwable $e) {
+            return ResponseHelper::failServerError($e->getMessage());
+        }
     }
 }

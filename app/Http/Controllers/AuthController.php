@@ -166,8 +166,8 @@ class AuthController extends Controller
         }
 
         try {
-            //* Check user email, password, and google where is null
-            $userExist = User::where('email', $request->email)->where('google_id', null)->first();
+            //* Check user where email and password
+            $userExist = User::where('email', $request->email)->first();
             if (!$userExist || !Hash::check($request->password, $userExist->password)) {
                 //* Return credential error for security purpose
                 return ResponseHelper::failValidationError('Credential Error');

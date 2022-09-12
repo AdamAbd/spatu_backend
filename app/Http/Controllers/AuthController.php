@@ -50,7 +50,6 @@ class AuthController extends Controller
     }
 
     /// @route   POST auth/verify
-    /// @desc    Verify all user email
     /// @desc    Verify user email and reset password
     /// @access  Public
     public function verify(Request $request)
@@ -187,8 +186,12 @@ class AuthController extends Controller
         }
     }
 
+    /// @route   POST auth/google
+    /// @desc    Creating or login in user with their google id
+    /// @access  Public
     public function google(Request $request)
     {
+        //* Validate all request
         $validator = Validator::make($request->all(), [
             'username' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email'],
@@ -196,29 +199,32 @@ class AuthController extends Controller
             'google_id' => ['required', 'string', 'max:255'],
         ]);
 
+        //* Check if request is not valid
         if ($validator->fails()) {
             return ResponseHelper::failValidationError($validator->errors()->first());
         }
 
         try {
+            //* Check user where email and password
             $userExist = User::where('email', $request->email)->first();
 
+            //* Return unauthorized when user is exist but the google id is different with google id in database
             if ($userExist && !empty($userExist->google_id) && $userExist->google_id != $request->google_id) {
                 return ResponseHelper::failUnauthorized();
 
-                //* blablabla
+                //* Check if user exist and google id is same as database
             } elseif ($userExist && $userExist->google_id == $request->google_id) {
                 $userExist->avatar = $request->avatar;
                 $userExist->save();
 
-                //* blablabla
+                //* Check if user exist and google id is empty
             } elseif ($userExist && $userExist->google_id == null) {
                 $userExist->google_id = $request->google_id;
                 $userExist->avatar = $request->avatar;
                 $userExist->email_verified_at = Carbon::now();
                 $userExist->save();
 
-                //* blablablabla
+                //* If user not exist yet
             } else {
                 $rand = rand(100000, 999999);
 
@@ -230,12 +236,16 @@ class AuthController extends Controller
                 $user->avatar = $request->avatar;
                 $user->email_verified_at = Carbon::now();
 
+                //* Run logic when user is save return success with user data and token 
                 if ($user->save()) {
                     return ResponseHelper::respondWithToken($user);
                 }
             }
 
+            //* Return success with user data and token 
             return ResponseHelper::respondWithToken($userExist);
+
+            //* Catch all error and return it
         } catch (\Throwable $e) {
             return ResponseHelper::failServerError($e->getMessage());
         }
@@ -259,6 +269,9 @@ class AuthController extends Controller
         }
     }
 
+    /// @route   POST auth/reset
+    /// @desc    Reset user password
+    /// @access  Public
     public function reset(Request $request)
     {
         //* Validate all request
@@ -280,7 +293,7 @@ class AuthController extends Controller
             }
 
 
-            // //* Run logic when user is save send verify code to user email
+            //* Run logic when user is save send verify code to user email
             return SendMailHelper::sendVerifyCode($userExist->id, $userExist->email, 'reset');
 
             //* Catch all error and return it

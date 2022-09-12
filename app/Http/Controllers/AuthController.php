@@ -3,28 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Http\Helper\ResponseHelper;
-use App\Mail\VerifyCodeMail;
+use App\Http\Helper\SendMailHelper;
 use App\Models\User;
 use App\Models\VerifyCodes;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
-    /**
-     * Create a new AuthController instance.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-        $this->middleware('auth:api', ['except' => ['register', 'verify', 'resendCode', 'login']]);
-    }
-
     /// @route   POST auth/register
     /// @desc    Register new user and send the verification code to their email
     /// @access  Public
@@ -51,7 +40,7 @@ class AuthController extends Controller
 
             //* Run logic when user is save send verify code to user email
             if ($user->save()) {
-                return $this->sendVerifyCode($user->id, $user->email);
+                return SendMailHelper::sendVerifyCode($user->id, $user->email);
             }
 
             //* Catch all error and return it
@@ -61,7 +50,6 @@ class AuthController extends Controller
     }
 
     /// @route   POST auth/verify
-    /// @desc    Verify all user email
     /// @desc    Verify user email and reset password
     /// @access  Public
     public function verify(Request $request)
@@ -69,6 +57,8 @@ class AuthController extends Controller
         //* Validate all request
         $validator = Validator::make($request->all(), [
             'code' => ['required', 'integer', 'min:100000', 'max:999999'],
+            'type' => ['required', 'string', 'in:email,reset'],
+            'password' => ['required_if:type,reset', 'string', 'min:8', 'confirmed'],
         ]);
 
         //* Check if request is not valid
@@ -77,15 +67,30 @@ class AuthController extends Controller
         }
 
         try {
-            //* Find VerifyCode where code = request code and expire_at date is greater than date now in database
-            $verifyCodesExist = VerifyCodes::where('code', $request->code)->whereDate('expired_at', '>=', Carbon::now())->first();
-            //* If verify code not exist return unauthorized response
+            //* Find VerifyCode where code = request code and expire_at date is greater than date now in database 
+            //* and return unauthorized response if not exist
+            $verifyCodesExist = VerifyCodes::where('code', $request->code)
+                ->whereDate('expired_at', '>=', Carbon::now())
+                ->first();
             if (!$verifyCodesExist) {
                 return ResponseHelper::failUnauthorized();
             }
 
-            //* Update email verified to date now in table users where id
-            User::where('id', $verifyCodesExist->user_id)->update(['email_verified_at' => Carbon::now()]);
+            if ($request->type != $verifyCodesExist->type) {
+                return ResponseHelper::failUnauthorized();
+            } elseif ($request->type == 'email') {
+                //* Update email verified to date now in table users where id
+                User::where('id', $verifyCodesExist->user_id)->update(['email_verified_at' => Carbon::now()]);
+            } else {
+                $userExist = User::where('id', $verifyCodesExist->user_id)->whereNot('email_verified_at', null)->first();
+
+                if (!$userExist) {
+                    return ResponseHelper::failUnauthorized();
+                }
+
+                $userExist->password = bcrypt($request->password);
+                $userExist->save();
+            }
 
             //* Delete column verify code
             $verifyCodesExist->delete();
@@ -107,6 +112,7 @@ class AuthController extends Controller
         //* Validate all request
         $validator = Validator::make($request->all(), [
             'email' => ['required', 'string', 'email'],
+            'type' => ['required', 'string', 'in:email,reset'],
         ]);
 
         //* Check if request is not valid
@@ -116,9 +122,17 @@ class AuthController extends Controller
 
         try {
             //* Find User where email and email verified at is null
-            $userExist = User::where('email', $request->email)->where('email_verified_at', null)->first();
+            $userExist = User::where('email', $request->email)->first();
             //* If verify code not exist return unauthorized response
             if (!$userExist) {
+                return ResponseHelper::failUnauthorized();
+            }
+
+            if ($request->type == 'email' && $userExist->email_verified_at != null) {
+                return ResponseHelper::failUnauthorized();
+            }
+
+            if ($request->type == 'reset' && $userExist->email_verified_at == null) {
                 return ResponseHelper::failUnauthorized();
             }
 
@@ -126,7 +140,7 @@ class AuthController extends Controller
             VerifyCodes::where('user_id', $userExist->id)->delete();
 
             //* Return success response
-            return $this->sendVerifyCode($userExist->id, $userExist->email);
+            return SendMailHelper::sendVerifyCode($userExist->id, $userExist->email, $request->type);
 
             //* Catch all error and return it
         } catch (\Throwable $e) {
@@ -134,6 +148,9 @@ class AuthController extends Controller
         }
     }
 
+    /// @route   POST auth/login
+    /// @desc    Verified email user login with correct email and password
+    /// @access  Public
     public function login(Request $request)
     {
         //* Validate all request
@@ -148,60 +165,139 @@ class AuthController extends Controller
         }
 
         try {
-            $userExist = User::where('email', $request->email)->where('google_id', null)->first();
+            //* Check user where email and password
+            $userExist = User::where('email', $request->email)->first();
             if (!$userExist || !Hash::check($request->password, $userExist->password)) {
+                //* Return credential error for security purpose
                 return ResponseHelper::failValidationError('Credential Error');
             }
 
-            $cookie = cookie('token', auth()->login($userExist), 7200);
+            //* Check user is already verified their emails or not
+            if ($userExist->email_verified_at == null) {
+                return ResponseHelper::failUnauthorized('Email not verified');
+            }
 
-            return ResponseHelper::respond('Success Login', [
-                'user' => $userExist,
-            ])->withCookie($cookie);
+            //* Return success with user data and token 
+            return ResponseHelper::respondWithToken($userExist);
+
+            //* Catch all error and return it
         } catch (\Throwable $e) {
             return ResponseHelper::failServerError($e->getMessage());
         }
     }
 
-    public function user(Request $request)
+    /// @route   POST auth/google
+    /// @desc    Creating or login in user with their google id
+    /// @access  Public
+    public function google(Request $request)
     {
-        try {
-            $user = auth()->user();
+        //* Validate all request
+        $validator = Validator::make($request->all(), [
+            'username' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email'],
+            'avatar' => ['required', 'string', 'max:255'],
+            'google_id' => ['required', 'string', 'max:255'],
+        ]);
 
-            $value = $request->hasCookie('token');
-            return ResponseHelper::respond('Success', ['user' => $user, 'token' => $value])
-                ->withCookie(Cookie::forget('token'));
-        } catch (\Tymon\JWTAuth\Exceptions\UserNotDefinedException $e) {
+        //* Check if request is not valid
+        if ($validator->fails()) {
+            return ResponseHelper::failValidationError($validator->errors()->first());
+        }
+
+        try {
+            //* Check user where email and password
+            $userExist = User::where('email', $request->email)->first();
+
+            //* Return unauthorized when user is exist but the google id is different with google id in database
+            if ($userExist && !empty($userExist->google_id) && $userExist->google_id != $request->google_id) {
+                return ResponseHelper::failUnauthorized();
+
+                //* Check if user exist and google id is same as database
+            } elseif ($userExist && $userExist->google_id == $request->google_id) {
+                $userExist->avatar = $request->avatar;
+                $userExist->save();
+
+                //* Check if user exist and google id is empty
+            } elseif ($userExist && $userExist->google_id == null) {
+                $userExist->google_id = $request->google_id;
+                $userExist->avatar = $request->avatar;
+                $userExist->email_verified_at = Carbon::now();
+                $userExist->save();
+
+                //* If user not exist yet
+            } else {
+                $rand = rand(100000, 999999);
+
+                $user = new User();
+                $user->username = $request->username;
+                $user->email = $request->email;
+                $user->password = bcrypt($rand);
+                $user->google_id = $request->google_id;
+                $user->avatar = $request->avatar;
+                $user->email_verified_at = Carbon::now();
+
+                //* Run logic when user is save return success with user data and token 
+                if ($user->save()) {
+                    return ResponseHelper::respondWithToken($user);
+                }
+            }
+
+            //* Return success with user data and token 
+            return ResponseHelper::respondWithToken($userExist);
+
+            //* Catch all error and return it
+        } catch (\Throwable $e) {
             return ResponseHelper::failServerError($e->getMessage());
         }
     }
 
-    /// @route   
-    /// @desc    Create verification code and send to user email
-    /// @access  Private
-    public function sendVerifyCode($userId, $email)
+    /// @route   POST auth/logout
+    /// @desc    Delete all user token (Access Token and Refresh Token) and delete the cookie
+    /// @access  Public
+    public function logout(Request $request)
     {
         try {
-            //* Create random verification code with length of 6
-            //TODO: Refactor $randomCode so it will be unique
-            $randomCode = rand(100000, 999999);
+            //* Delete user token
+            $request->user()->tokens()->delete();
 
-            //* Save all data to database
-            $verifyCodes = new VerifyCodes();
-            $verifyCodes->user_id = $userId;
-            $verifyCodes->code = $randomCode;
-            $verifyCodes->expired_at = Carbon::now()->addMinute(10);
-            $verifyCodes->save();
-
-            //* Mail verification code to user
-            //TODO: Make subject of mail dynamic
-            Mail::to($email)->send(new VerifyCodeMail($randomCode));
-
-            //* Return success response
-            return ResponseHelper::respondCreated("Please check your email", null);
+            //* Return Success Logout and also delete the cookie
+            return ResponseHelper::responDeleted('Success Logout', null)->withCookie(Cookie::forget('token'));
 
             //* Catch all error and return it
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            return ResponseHelper::failServerError($e->getMessage());
+        }
+    }
+
+    /// @route   POST auth/reset
+    /// @desc    Reset user password
+    /// @access  Public
+    public function reset(Request $request)
+    {
+        //* Validate all request
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'string', 'email'],
+        ]);
+
+        //* Check if request is not valid
+        if ($validator->fails()) {
+            return ResponseHelper::failValidationError($validator->errors()->first());
+        }
+
+        try {
+            //* Check user where email or email already verified or not
+            $userExist = User::where('email', $request->email)->first();
+            if (!$userExist || $userExist->email_verified_at == null) {
+                //* Return email not found
+                return ResponseHelper::failNotFound('Email not found');
+            }
+
+
+            //* Run logic when user is save send verify code to user email
+            return SendMailHelper::sendVerifyCode($userExist->id, $userExist->email, 'reset');
+
+            //* Catch all error and return it
+        } catch (\Throwable $e) {
             return ResponseHelper::failServerError($e->getMessage());
         }
     }

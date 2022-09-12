@@ -11,8 +11,8 @@
         "php": "^8.0.2",
         "guzzlehttp/guzzle": "^7.2",
         "laravel/framework": "^9.19",
-        "laravel/tinker": "^2.7",
-        "tymon/jwt-auth": "^1.0.2"
+        "laravel/sanctum": "^3.0",
+        "laravel/tinker": "^2.7"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
@@ -31,7 +31,8 @@
         },
         "files": [
             "app/Http/Helper/ResponseHelper.php",
-            "app/Http/Helper/ResponseCode.php"
+            "app/Http/Helper/ResponseCode.php",
+            "app/Http/Helper/SendMailHelper.php"
         ]
     },
     "autoload-dev": {

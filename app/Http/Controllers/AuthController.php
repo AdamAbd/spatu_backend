@@ -178,20 +178,8 @@ class AuthController extends Controller
                 return ResponseHelper::failUnauthorized('Email not verified');
             }
 
-            //* Creating two types of token
-            //* Access Token used for accesing user only API routes with limited time (30 minute)
-            //* Refresh Token used for refresh Access Token after 30 minute 
-            $accessToken = $userExist->createToken('access-token', ['user|accessToken'], Carbon::now()->addMinute(30))->plainTextToken;
-            $refreshToken = $userExist->createToken('refresh-token', ['user|refreshToken'], Carbon::now()->addDay(30))->plainTextToken;
-
-            //* Creating cookie with Refresh Token and live only 30 day
-            $cookie = cookie('token', $refreshToken, 60 * 24 * 30);
-
-            //* Return success with data of user and Access Token while sending the cookie
-            return ResponseHelper::respond('Success Login', [
-                'user' => $userExist,
-                'access_token' => $accessToken,
-            ])->withCookie($cookie);
+            //* Return success with user data and token 
+            return ResponseHelper::respondWithToken($userExist);
 
             //* Catch all error and return it
         } catch (\Throwable $e) {

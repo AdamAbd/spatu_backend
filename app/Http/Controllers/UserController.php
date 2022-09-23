@@ -42,6 +42,8 @@ class UserController extends Controller
             $user->username = $request->username ?: $user->username; // Short hand ternery operator in PHP
 
             if ($request->email != null) {
+                //TODO: Check if user google id is not empty
+                //TODO: If user is login with goggle they can't change their email
                 $user->email = $request->email;
                 $user->email_verified_at = null;
 

@@ -15,8 +15,14 @@ return new class extends Migration
     {
         Schema::create('verify_codes', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->uuid('user_id');
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+
+            //* Below code used for planet scale database
+            $table->uuid('user_id')->nullable();
+
+            //* Below code used for standar databases
+            // $table->uuid('user_id');
+            // $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+
             $table->integer('code')->unique();
             $table->enum('type', ['email', 'reset'])->default('email');
             $table->dateTimeTz('expired_at', $precision = 0);

@@ -17,6 +17,10 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::get('/halo', function () {
+    return response()->json('Halo Dunia');
+});
+
 Route::prefix('v1')->group(function () {
 
     Route::group(['middleware' => 'api', 'prefix' => 'auth'], function () {

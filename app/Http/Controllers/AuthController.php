@@ -23,7 +23,7 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'username' => ['required', 'string', 'max:16'],
             'email' => ['required', 'string', 'unique:users,email', 'email'],
-            'password' => ['required', 'string', 'min:6'],
+            'password' => ['required', 'string', 'min:8'],
         ]);
 
         //* Check if request is not valid
@@ -275,6 +275,7 @@ class AuthController extends Controller
     public function reset(Request $request)
     {
         //* Validate all request
+        //TODO: Coba rubah validator email menjadi exist
         $validator = Validator::make($request->all(), [
             'email' => ['required', 'string', 'email'],
         ]);

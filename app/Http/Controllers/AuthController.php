@@ -100,7 +100,19 @@ class AuthController extends Controller
                 return ResponseHelper::failUnauthorized();
             } elseif ($request->type == 'email') {
                 //* Update email verified to date now in table users where id
-                User::where('id', $verifyCodesExist->user_id)->update(['email_verified_at' => Carbon::now()]);
+                $userExist = User::where('id', $verifyCodesExist->user_id)->first();
+
+                if (!$userExist) {
+                    return ResponseHelper::failUnauthorized();
+                }
+
+                $userExist->update(['email_verified_at' => Carbon::now()]);
+
+                //* Delete column verify code
+                $verifyCodesExist->delete();
+
+                //* Return success with user data and token 
+                return ResponseHelper::respondWithToken($userExist, 'Your email verification success');
             } else {
                 //TODO : Update whereNot to use whereNotNull
                 $userExist = User::where('id', $verifyCodesExist->user_id)->whereNot('email_verified_at', null)->first();
@@ -111,13 +123,13 @@ class AuthController extends Controller
 
                 $userExist->password = bcrypt($request->password);
                 $userExist->save();
+
+                //* Delete column verify code
+                $verifyCodesExist->delete();
+
+                //* Return success response
+                return ResponseHelper::respond('Your email verification success');
             }
-
-            //* Delete column verify code
-            $verifyCodesExist->delete();
-
-            //* Return success response
-            return ResponseHelper::respond('Your email verification success');
 
             //* Catch all error and return it
         } catch (\Throwable $e) {

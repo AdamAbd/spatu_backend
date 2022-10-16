@@ -87,7 +87,7 @@ class ResponseHelper
         return ResponseHelper::fail($errors, $status, ResponseCode::server_error);
     }
 
-    public static function respondWithToken(User $user)
+    public static function respondWithToken(User $user, $message = 'Success Login.')
     {
         try {
             //* Creating two types of token
@@ -100,7 +100,7 @@ class ResponseHelper
             $cookie = cookie("token", $refreshToken, 60 * 24 * 30);
 
             //* Return success with data of user and Access Token while sending the cookie
-            return ResponseHelper::respond('Success Login.', [
+            return ResponseHelper::respond($message, [
                 'user' => $user,
                 'access_token' => $accessToken,
             ])->withCookie($cookie);

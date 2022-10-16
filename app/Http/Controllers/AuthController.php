@@ -22,7 +22,7 @@ class AuthController extends Controller
         //* Validate all request
         $validator = Validator::make($request->all(), [
             'username' => ['required', 'string', 'max:16'],
-            'email' => ['required', 'string', 'unique:users,email', 'email'],
+            'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string', 'min:8'],
         ]);
 
@@ -32,16 +32,36 @@ class AuthController extends Controller
         }
 
         try {
-            //* Creating user with data from request
-            $user = new User();
-            $user->username = $request->username;
-            $user->email = $request->email;
-            $user->password = bcrypt($request->password);
+            //* Check user where email
+            $userExist = User::where('email', $request->email)->first();
 
-            //* Run logic when user is save send verify code to user email
-            if ($user->save()) {
-                return SendMailHelper::sendVerifyCode($user->id, $user->email);
+            //* If user exist and email verified at not null return validation error
+            if ($userExist && $userExist->email_verified_at != null) {
+                return ResponseHelper::failValidationError('The email has already been taken.');
+
+                //* If user exist update user with data from request
+            } else if ($userExist) {
+                $userExist->username = $request->username;
+                $userExist->password = bcrypt($request->password);
+
+                //* Run logic when user is save send verify code to user email
+                if ($userExist->save()) {
+                    return SendMailHelper::sendVerifyCode($userExist->id, $userExist->email);
+                }
+
+                //* Else creating user with data from request
+            } else {
+                $user = new User();
+                $user->username = $request->username;
+                $user->email = $request->email;
+                $user->password = bcrypt($request->password);
+
+                //* Run logic when user is save send verify code to user email
+                if ($user->save()) {
+                    return SendMailHelper::sendVerifyCode($user->id, $user->email);
+                }
             }
+
 
             //* Catch all error and return it
         } catch (\Exception $e) {
@@ -82,6 +102,7 @@ class AuthController extends Controller
                 //* Update email verified to date now in table users where id
                 User::where('id', $verifyCodesExist->user_id)->update(['email_verified_at' => Carbon::now()]);
             } else {
+                //TODO : Update whereNot to use whereNotNull
                 $userExist = User::where('id', $verifyCodesExist->user_id)->whereNot('email_verified_at', null)->first();
 
                 if (!$userExist) {

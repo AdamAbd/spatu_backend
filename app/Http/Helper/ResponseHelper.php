@@ -97,7 +97,7 @@ class ResponseHelper
             $refreshToken = $user->createToken("refresh-token", ["user|refreshToken"], Carbon::now()->addDay(30))->plainTextToken;
 
             //* Creating cookie with Refresh Token and live only 30 day
-            $cookie = cookie("token", $refreshToken, 60 * 24 * 30);
+            $cookie = cookie("refresh_token", $refreshToken, 60 * 24 * 30);
 
             //* Return success with data of user and Access Token while sending the cookie
             return ResponseHelper::respond($message, [

@@ -294,7 +294,7 @@ class AuthController extends Controller
             $request->user()->tokens()->delete();
 
             //* Return Success Logout and also delete the cookie
-            return ResponseHelper::responDeleted('Success Logout', null)->withCookie(Cookie::forget('token'));
+            return ResponseHelper::responDeleted('Success Logout', null)->withCookie(Cookie::forget('refresh_token'));
 
             //* Catch all error and return it
         } catch (\Throwable $e) {

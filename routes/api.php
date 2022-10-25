@@ -26,7 +26,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/resend_code', [AuthController::class, 'resendCode'])->name('auth.resendCode');
         Route::post('/login', [AuthController::class, 'login'])->name('auth.login');
         Route::post('/google', [AuthController::class, 'google'])->name('auth.google');
-        Route::put('/reset', [AuthController::class, 'reset'])->name('auth.reset');
+        Route::put('/reset', [AuthController::class, 'sendReset'])->name('auth.sendReset');
+        Route::put('/reset_password', [AuthController::class, 'resetPassword'])->name('auth.resetPassword');
     });
 
     Route::group(['middleware' => ['auth:sanctum', 'ability:user|accessToken']], function () {

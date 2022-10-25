@@ -78,7 +78,6 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'code' => ['required', 'integer', 'min:100000', 'max:999999'],
             'type' => ['required', 'string', 'in:email,reset'],
-            'password' => ['required_if:type,reset', 'string', 'min:8', 'confirmed'],
         ]);
 
         //* Check if request is not valid
@@ -114,18 +113,11 @@ class AuthController extends Controller
                 //* Return success with user data and token 
                 return ResponseHelper::respondWithToken($userExist, 'Your email verification success');
             } else {
-                //TODO : Update whereNot to use whereNotNull
-                $userExist = User::where('id', $verifyCodesExist->user_id)->whereNot('email_verified_at', null)->first();
+                $userExist = User::where('id', $verifyCodesExist->user_id)->whereNotNull('email_verified_at')->first();
 
                 if (!$userExist) {
                     return ResponseHelper::failUnauthorized();
                 }
-
-                $userExist->password = bcrypt($request->password);
-                $userExist->save();
-
-                //* Delete column verify code
-                $verifyCodesExist->delete();
 
                 //* Return success response
                 return ResponseHelper::respond('Your email verification success');
@@ -303,9 +295,9 @@ class AuthController extends Controller
     }
 
     /// @route   POST auth/reset
-    /// @desc    Reset user password
+    /// @desc    Send reset verify code
     /// @access  Public
-    public function reset(Request $request)
+    public function sendReset(Request $request)
     {
         //* Validate all request
         //TODO: Coba rubah validator email menjadi exist
@@ -329,6 +321,53 @@ class AuthController extends Controller
 
             //* Run logic when user is save send verify code to user email
             return SendMailHelper::sendVerifyCode($userExist->id, $userExist->email, 'reset');
+
+            //* Catch all error and return it
+        } catch (\Throwable $e) {
+            return ResponseHelper::failServerError($e->getMessage());
+        }
+    }
+
+    /// @route   POST auth/reset_password
+    /// @desc    Reset user password
+    /// @access  Public
+    public function resetPassword(Request $request)
+    {
+        //* Validate all request
+        $validator = Validator::make($request->all(), [
+            'code' => ['required', 'integer', 'min:100000', 'max:999999'],
+            'password' => ['required_if:type,reset', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        //* Check if request is not valid
+        if ($validator->fails()) {
+            return ResponseHelper::failValidationError($validator->errors()->first());
+        }
+
+        try {
+            //* Find VerifyCode where code = request code and expire_at date is greater than date now in database 
+            //* and return unauthorized response if not exist
+            $verifyCodesExist = VerifyCodes::where('code', $request->code)
+                ->whereDate('expired_at', '>=', Carbon::now())
+                ->first();
+            if (!$verifyCodesExist) {
+                return ResponseHelper::failUnauthorized();
+            }
+
+            $userExist = User::where('id', $verifyCodesExist->user_id)->whereNotNull('email_verified_at')->first();
+
+            if (!$userExist) {
+                return ResponseHelper::failUnauthorized();
+            }
+
+            $userExist->password = bcrypt($request->password);
+            $userExist->save();
+
+            //* Delete column verify code
+            $verifyCodesExist->delete();
+
+            //* Return success response
+            return ResponseHelper::respond('Your password has been changed');
 
             //* Catch all error and return it
         } catch (\Throwable $e) {

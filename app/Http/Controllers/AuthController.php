@@ -220,7 +220,7 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'username' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email'],
-            'avatar' => ['required', 'string', 'max:255'],
+            'avatar' => ['required', 'url', 'max:255'],
             'google_id' => ['required', 'string', 'max:255'],
         ]);
 

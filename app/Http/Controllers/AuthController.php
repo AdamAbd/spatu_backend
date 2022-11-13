@@ -153,11 +153,11 @@ class AuthController extends Controller
                 return ResponseHelper::failUnauthorized();
             }
 
-            if ($request->type == 'email' && $userExist->email_verified_at != null) {
+            if ($request->type == 'email' && !empty($userExist->email_verified_at)) {
                 return ResponseHelper::failUnauthorized();
             }
 
-            if ($request->type == 'reset' && $userExist->email_verified_at == null) {
+            if ($request->type == 'reset' && empty($userExist->email_verified_at)) {
                 return ResponseHelper::failUnauthorized();
             }
 
@@ -198,7 +198,7 @@ class AuthController extends Controller
             }
 
             //* Check user is already verified their emails or not
-            if ($userExist->email_verified_at == null) {
+            if (empty($userExist->email_verified_at)) {
                 return ResponseHelper::failUnauthorized('Email not verified');
             }
 
@@ -304,7 +304,6 @@ class AuthController extends Controller
     public function sendReset(Request $request)
     {
         //* Validate all request
-        //TODO: Coba rubah validator email menjadi exist
         $validator = Validator::make($request->all(), [
             'email' => ['required', 'string', 'email'],
         ]);
@@ -315,9 +314,10 @@ class AuthController extends Controller
         }
 
         try {
-            //* Check user where email or email already verified or not
             $userExist = User::where('email', $request->email)->first();
-            if (!$userExist || $userExist->email_verified_at == null) {
+
+            //* Check user where email or email already verified or not
+            if (!$userExist || empty($userExist->email_verified_at)) {
                 //* Return email not found
                 return ResponseHelper::failNotFound('Email not found');
             }

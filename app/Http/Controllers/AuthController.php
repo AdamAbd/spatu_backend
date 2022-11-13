@@ -233,22 +233,26 @@ class AuthController extends Controller
             //* Check user where email and password
             $userExist = User::where('email', $request->email)->first();
 
-            //* Return unauthorized when user is exist but the google id is different with google id in database
-            if ($userExist && !empty($userExist->google_id) && $userExist->google_id != $request->google_id) {
-                return ResponseHelper::failUnauthorized();
+            //* Check if user is exist or not
+            if ($userExist) {
+                $isGoogleIdValid = Hash::check($request->google_id, $userExist->google_id);
 
-                //* Check if user exist and google id is same as database
-            } elseif ($userExist && $userExist->google_id == $request->google_id) {
-                $userExist->avatar = $request->avatar;
-                $userExist->save();
+                //* Return unauthorized when user is exist but the google id is different with google id in database
+                if (!empty($userExist->google_id) && !$isGoogleIdValid) {
+                    return ResponseHelper::failUnauthorized();
 
-                //* Check if user exist and google id is empty
-            } elseif ($userExist && $userExist->google_id == null) {
-                $userExist->google_id = $request->google_id;
-                $userExist->avatar = $request->avatar;
-                $userExist->email_verified_at = Carbon::now();
-                $userExist->save();
+                    //* Check if user exist and google id is same as database
+                } elseif ($isGoogleIdValid) {
+                    $userExist->avatar = $request->avatar;
+                    $userExist->save();
 
+                    //* Check if user exist and google id is empty
+                } elseif (empty($userExist->google_id)) {
+                    $userExist->google_id = bcrypt($request->google_id);
+                    $userExist->avatar = $request->avatar;
+                    $userExist->email_verified_at = Carbon::now();
+                    $userExist->save();
+                }
                 //* If user not exist yet
             } else {
                 $rand = rand(100000, 999999);
@@ -257,7 +261,7 @@ class AuthController extends Controller
                 $user->username = $request->username;
                 $user->email = $request->email;
                 $user->password = bcrypt($rand);
-                $user->google_id = $request->google_id;
+                $user->google_id = bcrypt($request->google_id);
                 $user->avatar = $request->avatar;
                 $user->email_verified_at = Carbon::now();
 

@@ -13,17 +13,17 @@ use Illuminate\Support\Facades\Validator;
 
 class ProductController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
+    /// @route   GET product
+    /// @desc    Get all product
+    /// @access  Public
     public function index()
     {
         try {
-            $products = Product::with(['brand', 'product_images', 'product_color_types', 'product_sizes'])->get();
+            //* Get all Products with relation of brand, product_images, product_color_types and product_sizes
+            $products = Product::with(['brand', 'product_images', 'product_color_types', 'product_sizes'])
+                ->get();
 
-            //* Return user detail
+            //* Return all Products
             return ResponseHelper::respond('Success Get Products', $products);
 
             //* Catch all error and return it
@@ -32,28 +32,43 @@ class ProductController extends Controller
         }
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function storeProduct(Request $request)
+    /// @route   POST product
+    /// @desc    Store product with multiple images, colors and sizes
+    /// @access  Private
+    public function store(Request $request)
     {
+        //* Validate all request
         $validator = Validator::make($request->all(), [
             'brand_id' => ['required', 'integer', 'exists:brands,id'],
+            //* Check images parameter
+            'images' => ['required', 'array'],
+            //* Check values of images parameter
+            'images.*' => ['required', 'image', 'mimes:png,jpg', 'max:5120'],
+            //* Check color_images parameter
+            'color_images' => ['required', 'array'],
+            //* Check values of color_images parameter
+            'color_images.*' => ['required', 'image', 'mimes:png,jpg', 'max:5120'],
+            //* Check sizes parameter
+            'sizes' => ['required', 'array'],
+            //* Check values of sizes parameter
+            'sizes.*' => ['required', 'numeric', 'distinct'],
             'title' => ['required', 'string', 'unique:products,title', 'max:255'],
-            'rating' => ['required', 'numeric', 'gt:0'],
-            'reviews_total' => ['required', 'integer', 'gt:0'],
-            'solds_total' => ['required', 'integer', 'gt:0'],
+            'rating' => ['required', 'numeric', 'gt:0', 'lte:5'],
+            'reviews_total' => ['required', 'integer', 'gte:0'],
+            'solds_total' => ['required', 'integer', 'gte:0'],
             'description' => ['required', 'string'],
         ]);
 
+        //* Check if request is not valid
         if ($validator->fails()) {
             return ResponseHelper::failValidationError($validator->errors()->first());
         }
 
+        //* Store product id without initial value
+        $productId = 0;
+
         try {
+            //* Creating Product with data from request
             $product = new Product();
 
             $product->brand_id = $request->brand_id;
@@ -63,138 +78,73 @@ class ProductController extends Controller
             $product->solds_total = $request->solds_total;
             $product->description = $request->description;
 
+            //* Run logic when product is save create images, colors and sizes
             if ($product->save()) {
-                return ResponseHelper::respondCreated('Success', $product);
+                //* Update value of variable productId with new created product id
+                $productId = $product->id;
+
+                //* Loop request with parameter images
+                foreach ($request->file('images') as $file) {
+                    //* get file original name
+                    $productImageName = $file->getClientOriginalName();
+                    //* store file publicly
+                    $file->storePubliclyAs('public/product/image', $productImageName);
+
+                    //* Creating Product with data from request and productId
+                    $productImage = new ProductImage();
+
+                    $productImage->product_id = $productId;
+                    $productImage->image = 'storage/product/image/' . $productImageName;
+
+                    $productImage->save();
+                }
+
+                //* Loop request with parameter color_images
+                foreach ($request->file('color_images') as $file) {
+                    //* get file original name
+                    $productImageName = $file->getClientOriginalName();
+                    //* store file publicly
+                    $file->storePubliclyAs('public/product/color', $productImageName);
+
+                    //* Creating ProductColorType with data from request and productId
+                    $productImage = new ProductColorType();
+
+                    $productImage->product_id = $productId;
+                    $productImage->image = 'storage/product/color/' . $productImageName;
+
+                    $productImage->save();
+                }
+
+                //* Loop request with parameter sizes
+                foreach ($request->sizes as $size) {
+                    //* Find or create Size
+                    $dbSize = Size::firstOrCreate(['size' => $size]);
+
+                    //* Creating ProductSize with data from request and productId
+                    $productSize = new ProductSize();
+
+                    $productSize->product_id = $productId;
+                    $productSize->size_id = $dbSize->id;
+
+                    $productSize->save();
+                }
+
+                //* Find a Product with relation of brand, product_images, product_color_types and product_sizes
+                $newProduct = Product::with(['brand', 'product_images', 'product_color_types', 'product_sizes'])
+                    ->find($productId);
+
+                //* Return response created
+                return ResponseHelper::respondCreated('Success Create Product', $newProduct);
             }
+
+            //* Catch all error and return it
         } catch (\Exception $e) {
-            return ResponseHelper::failServerError($e->getMessage());
-        }
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function storeProductImage(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'product_id' => ['required', 'integer', 'exists:products,id'],
-            'image' => ['required', 'image', 'mimes:png,jpg'],
-        ]);
-
-        if ($validator->fails()) {
-            return ResponseHelper::failValidationError($validator->errors()->first());
-        }
-
-        try {
-            $productImageName = $request->file('image')->getClientOriginalName();
-            $request->file('image')->storePubliclyAs('public/product/image', $productImageName);
-
-            $productImage = new ProductImage();
-
-            $productImage->product_id = $request->product_id;
-            $productImage->image = 'storage/product/image/' . $productImageName;
-
-            if ($productImage->save()) {
-                return ResponseHelper::respondCreated('Success', $productImage);
+            //* Run logic when variable productId no null
+            if ($productId != 0) {
+                //* Find specific Product and delete
+                Product::find($productId)->delete();
             }
-        } catch (\Exception $e) {
-            return ResponseHelper::failServerError($e->getMessage());
-        }
-    }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function storeProductColorType(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'product_id' => ['required', 'integer', 'exists:products,id'],
-            'image' => ['required', 'image', 'mimes:png,jpg'],
-        ]);
-
-        if ($validator->fails()) {
-            return ResponseHelper::failValidationError($validator->errors()->first());
-        }
-
-        try {
-            $productColorTypeName = $request->file('image')->getClientOriginalName();
-            $request->file('image')->storePubliclyAs('public/product/color', $productColorTypeName);
-
-            $productColorType = new ProductColorType();
-
-            $productColorType->product_id = $request->product_id;
-            $productColorType->image = 'storage/product/color/' . $productColorTypeName;
-
-            if ($productColorType->save()) {
-                return ResponseHelper::respondCreated('Success', $productColorType);
-            }
-        } catch (\Exception $e) {
-            return ResponseHelper::failServerError($e->getMessage());
-        }
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function storeSize(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'size' => ['required', 'numeric', 'unique:sizes,size'],
-        ]);
-
-        if ($validator->fails()) {
-            return ResponseHelper::failValidationError($validator->errors()->first());
-        }
-
-        try {
-            $size = new Size();
-
-            $size->size = $request->size;
-
-            if ($size->save()) {
-                return ResponseHelper::respondCreated('Success', $size);
-            }
-        } catch (\Exception $e) {
-            return ResponseHelper::failServerError($e->getMessage());
-        }
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function storeProductSize(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'product_id' => ['required', 'integer', 'exists:products,id'],
-            'size_id' => ['required', 'numeric', 'exists:sizes,id'],
-        ]);
-
-        if ($validator->fails()) {
-            return ResponseHelper::failValidationError($validator->errors()->first());
-        }
-
-        try {
-            $productSize = new ProductSize();
-
-            $productSize->product_id = $request->product_id;
-            $productSize->size_id = $request->size_id;
-
-            if ($productSize->save()) {
-                return ResponseHelper::respondCreated('Success', $productSize);
-            }
-        } catch (\Exception $e) {
             return ResponseHelper::failServerError($e->getMessage());
         }
     }

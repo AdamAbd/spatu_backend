@@ -54,10 +54,6 @@ Route::prefix('v1')->group(function () {
 
         Route::apiResource('brand', BrandController::class);
         Route::post('/wishlist', [WishlistController::class, 'store'])->name('wishlist.store');
-        Route::post('/size', [ProductController::class, 'storeSize'])->name('size.store');
-        Route::post('/product', [ProductController::class, 'storeProduct'])->name('product.store');
-        Route::post('/product_image', [ProductController::class, 'storeProductImage'])->name('product_image.store');
-        Route::post('/product_color', [ProductController::class, 'storeProductColorType'])->name('product_color.store');
-        Route::post('/product_size', [ProductController::class, 'storeProductSize'])->name('product_size.store');
+        Route::post('/product', [ProductController::class, 'store'])->name('product.store');
     });
 });

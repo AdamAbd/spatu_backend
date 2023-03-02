@@ -7,7 +7,6 @@ use App\Models\Product;
 use App\Models\ProductColorType;
 use App\Models\ProductImage;
 use App\Models\ProductSize;
-use App\Models\Size;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -44,15 +43,7 @@ class ProductController extends Controller
             'images' => ['required', 'array'],
             //* Check values of images parameter
             'images.*' => ['required', 'image', 'mimes:png,jpg', 'max:5120'],
-            //* Check color_images parameter
-            'color_images' => ['required', 'array'],
-            //* Check values of color_images parameter
-            'color_images.*' => ['required', 'image', 'mimes:png,jpg', 'max:5120'],
-            //* Check sizes parameter
-            'sizes' => ['required', 'array'],
-            //* Check values of sizes parameter
-            'sizes.*' => ['required', 'numeric', 'distinct'],
-            'title' => ['required', 'string', 'unique:products,title', 'max:255'],
+            'name' => ['required', 'string', 'unique:products,name', 'max:255'],
             'rating' => ['required', 'numeric', 'gt:0', 'lte:5'],
             'reviews_total' => ['required', 'integer', 'gte:0'],
             'solds_total' => ['required', 'integer', 'gte:0'],
@@ -72,7 +63,7 @@ class ProductController extends Controller
             $product = new Product();
 
             $product->brand_id = $request->brand_id;
-            $product->title = $request->title;
+            $product->name = $request->name;
             $product->rating = $request->rating;
             $product->reviews_total = $request->reviews_total;
             $product->solds_total = $request->solds_total;
@@ -117,14 +108,12 @@ class ProductController extends Controller
 
                 //* Loop request with parameter sizes
                 foreach ($request->sizes as $size) {
-                    //* Find or create Size
-                    $dbSize = Size::firstOrCreate(['size' => $size]);
-
                     //* Creating ProductSize with data from request and productId
                     $productSize = new ProductSize();
 
                     $productSize->product_id = $productId;
-                    $productSize->size_id = $dbSize->id;
+                    $productSize->size = $size;
+                    $productSize->size = $size;
 
                     $productSize->save();
                 }

@@ -23,6 +23,7 @@ return new class extends Migration
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
 
             $table->text('image');
+            $table->integer('price')->default(0);
 
             $table->timestamps();
         });

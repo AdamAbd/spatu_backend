@@ -22,7 +22,7 @@ return new class extends Migration
             //* Below code used for standar databases
             $table->foreignId('brand_id')->constrained()->onDelete('cascade');
 
-            $table->string('title')->unique();
+            $table->string('name')->unique();
             $table->decimal('rating');
             $table->integer('reviews_total');
             $table->integer('solds_total');

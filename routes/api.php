@@ -2,11 +2,12 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BrandController;
+use App\Http\Controllers\ProductColorTypeController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductSizeController;
 use App\Http\Controllers\RefreshTokenController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WishlistController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -36,7 +37,7 @@ Route::prefix('v1')->group(function () {
     Route::group(['middleware' => ['auth:sanctum', 'ability:user|refreshToken']], function () {
 
         Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
-        Route::post('/refresh-token', [RefreshTokenController::class, 'refreshToken'])->name('auth.refreshToken');
+        Route::post('/refresh_token', [RefreshTokenController::class, 'refreshToken'])->name('auth.refreshToken');
     });
 
     Route::group(['middleware' => ['auth:sanctum', 'ability:user|accessToken']], function () {
@@ -55,5 +56,7 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('brand', BrandController::class);
         Route::post('/wishlist', [WishlistController::class, 'store'])->name('wishlist.store');
         Route::post('/product', [ProductController::class, 'store'])->name('product.store');
+        Route::apiResource('/product_color_type', ProductColorTypeController::class);
+        Route::apiResource('/product_size', ProductSizeController::class);
     });
 });

@@ -16,7 +16,7 @@ class Product extends Model
      */
     protected $fillable = [
         'brand_id',
-        'title',
+        'name',
         'rating',
         'reviews_total',
         'solds_total',
@@ -40,6 +40,6 @@ class Product extends Model
 
     public function product_sizes()
     {
-        return $this->belongsToMany(Size::class);
+        return $this->hasMany(ProductSize::class);
     }
 }

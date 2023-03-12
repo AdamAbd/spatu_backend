@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductColorType;
 use App\Models\ProductImage;
 use App\Models\ProductSize;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -15,15 +16,57 @@ class ProductController extends Controller
     /// @route   GET product
     /// @desc    Get all product
     /// @access  Public
-    public function index()
+    public function index(Request $request)
     {
         try {
-            //* Get all Products with relation of brand, product_images, product_color_types and product_sizes
-            $products = Product::with(['brand', 'product_images', 'product_color_types', 'product_sizes'])
-                ->get();
+            $q = $request->input('q');
+            $brand = $request->input('brand');
+            $limit = $request->input('limit', 4);
 
-            //* Return all Products
-            return ResponseHelper::respond('Success Get Products', $products);
+            if (!empty($brand)) {
+                $products = Product::where('name', 'ILIKE', '%' . $q . '%')
+                    ->whereHas('brand', function (Builder $query) use ($brand) {
+                        $query->where('name', 'ilike', $brand);
+                    })
+                    ->with(['brand'])
+                    ->paginate($limit);
+            } else {
+                //* Get all Products with relation of brand, product_images, product_color_types and product_sizes
+                $products = Product::where('name', 'ILIKE', '%' . $q . '%')
+                    ->with(['brand'])
+                    ->select(['id', 'brand_id', 'name', 'solds_total', 'created_at', 'updated_at'])
+                    ->paginate($limit);
+            }
+
+            foreach ($products as $product) {
+                $product->image = ProductImage::where('product_id', $product->id)
+                    ->first()
+                    ->image;
+
+                $sizePrice = ProductSize::where('product_id', $product->id)
+                    ->where('product_id', $product->id)
+                    ->orderBy('price', 'ASC')
+                    ->first()
+                    ->price;
+
+                $colorPrice = ProductColorType::where('product_id', $product->id)
+                    ->where('product_id', $product->id)
+                    ->orderBy('price', 'ASC')
+                    ->first()
+                    ->price;
+
+                $product->price = $sizePrice + $colorPrice;
+            }
+
+            $page = array(
+                'number' => $products->toArray()['current_page'],
+                'limit' => $products->toArray()['per_page'],
+                'total' => $products->toArray()['last_page'],
+                'total_data' => $products->toArray()['total'],
+            );
+
+            // //* Return All Products
+            return ResponseHelper::respondList('Get All Products', $products->toArray()['data'], $page);
 
             //* Catch all error and return it
         } catch (\Throwable $e) {
@@ -90,40 +133,40 @@ class ProductController extends Controller
                     $productImage->save();
                 }
 
-                //* Loop request with parameter color_images
-                foreach ($request->file('color_images') as $file) {
-                    //* get file original name
-                    $productImageName = $file->getClientOriginalName();
-                    //* store file publicly
-                    $file->storePubliclyAs('public/product/color', $productImageName);
+                // //* Loop request with parameter color_images
+                // foreach ($request->file('color_images') as $file) {
+                //     //* get file original name
+                //     $productImageName = $file->getClientOriginalName();
+                //     //* store file publicly
+                //     $file->storePubliclyAs('public/product/color', $productImageName);
 
-                    //* Creating ProductColorType with data from request and productId
-                    $productImage = new ProductColorType();
+                //     //* Creating ProductColorType with data from request and productId
+                //     $productImage = new ProductColorType();
 
-                    $productImage->product_id = $productId;
-                    $productImage->image = 'storage/product/color/' . $productImageName;
+                //     $productImage->product_id = $productId;
+                //     $productImage->image = 'storage/product/color/' . $productImageName;
 
-                    $productImage->save();
-                }
+                //     $productImage->save();
+                // }
 
-                //* Loop request with parameter sizes
-                foreach ($request->sizes as $size) {
-                    //* Creating ProductSize with data from request and productId
-                    $productSize = new ProductSize();
+                // //* Loop request with parameter sizes
+                // foreach ($request->sizes as $size) {
+                //     //* Creating ProductSize with data from request and productId
+                //     $productSize = new ProductSize();
 
-                    $productSize->product_id = $productId;
-                    $productSize->size = $size;
-                    $productSize->size = $size;
+                //     $productSize->product_id = $productId;
+                //     $productSize->size = $size;
+                //     $productSize->size = $size;
 
-                    $productSize->save();
-                }
+                //     $productSize->save();
+                // }
 
                 //* Find a Product with relation of brand, product_images, product_color_types and product_sizes
                 $newProduct = Product::with(['brand', 'product_images', 'product_color_types', 'product_sizes'])
                     ->find($productId);
 
                 //* Return response created
-                return ResponseHelper::respondCreated('Success Create Product', $newProduct);
+                return ResponseHelper::respondCreated('Create Product', $newProduct);
             }
 
             //* Catch all error and return it
